@@ -1,0 +1,3 @@
+namespace VDMSC{
+    int newWindow();
+}
