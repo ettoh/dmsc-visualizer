@@ -1,6 +1,6 @@
 #include "opengl_widget.h"
-#include "../instance/vector3d.h"
 #include "opengl_toolkit.h"
+#include "vdmsc/glm_include.h"
 #include <QImage>
 #include <QOpenGLTexture>
 #include <QTimer>
@@ -149,8 +149,7 @@ void OpenGLWidget::visualizeInstance(const ProblemInstance& instance) {
     glGenBuffers(1, &edge_subscene.ibo_static);
 
     // 1. build meshes and push them to the gpu
-    Mesh sphere = OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale,
-                                                 glm::vec3(0.0f), 35);
+    Mesh sphere = OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
     for (const Orbit& o : problem_instance.orbits) {
         // Orbit
@@ -271,8 +270,7 @@ void OpenGLWidget::pushSceneToGPU() {
             if (model.isElementObject()) {
                 size_t object_element_size = model.totalElementSize(); // size of all vertex id's in byte
                 glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subscene.ibo_static);
-                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size,
-                                &model.elements[0]);
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &model.elements[0]);
                 offset_elements += object_element_size;
             }
         }
@@ -349,7 +347,7 @@ void OpenGLWidget::recalculateOrbitPositions() {
         // assume that all satellites have the same amount of vertices
         nmbr_vertecies = satellite_subscene->getObjects().at(0).number_vertices;
     for (const Orbit& o : problem_instance.orbits) {
-        Vector3D offset = o.cartesian_coordinates(time) / real_world_scale;
+        glm::vec3 offset = o.cartesian_coordinates(time) / real_world_scale;
         for (int i = 0; i < nmbr_vertecies; i++) {
             positions.push_back(offset.x);
             positions.push_back(offset.y);
@@ -370,8 +368,8 @@ void OpenGLWidget::recalculateEdges() {
     Mesh all_lines;
     for (int i = 0; i < problem_instance.edges.size(); i++) {
         const Edge& edge = problem_instance.edges.at(i);
-        Vector3D sat1 = edge.getV1().cartesian_coordinates(time) / real_world_scale;
-        Vector3D sat2 = edge.getV2().cartesian_coordinates(time) / real_world_scale;
+        glm::vec3 sat1 = edge.getV1().cartesian_coordinates(time) / real_world_scale;
+        glm::vec3 sat2 = edge.getV2().cartesian_coordinates(time) / real_world_scale;
         VertexData vertex_1(sat1.x, sat1.y, sat1.z);
         VertexData vertex_2(sat2.x, sat2.y, sat2.z);
 
@@ -387,9 +385,8 @@ void OpenGLWidget::recalculateEdges() {
             if (solution.at(current_scan).edge_index == i) { // edge is scanned next
                 vertex_1.setColor(1.0f, .75f, 0.0f);
                 vertex_2.setColor(1.0f, .75f, 0.0f);
-            } else if (edge.isBlocked(time) ||
-                       !edge.canAlign(satellite_orientations.previous(&edge.getV1(), time),
-                                      satellite_orientations.previous(&edge.getV2(), time), time)) {
+            } else if (edge.isBlocked(time) || !edge.canAlign(satellite_orientations.previous(&edge.getV1(), time),
+                                                              satellite_orientations.previous(&edge.getV2(), time), time)) {
                 vertex_1.setColor(1.0f, 0.0f, 0.0f);
                 vertex_2.setColor(1.0f, 0.0f, 0.0f);
             } else {
@@ -404,23 +401,21 @@ void OpenGLWidget::recalculateEdges() {
 
     // build satellite orientations
     for (auto const& orbit : problem_instance.orbits) {
-        Vector3D position = orbit.cartesian_coordinates(time) / real_world_scale;
+        glm::vec3 position = orbit.cartesian_coordinates(time) / real_world_scale;
         Orientation last_orientation = satellite_orientations.previous(&orbit, time);
         Orientation next_orientation = satellite_orientations.next(&orbit, time);
-        float angle = std::acos(dot_product(last_orientation.direction, next_orientation.direction)); // [rad]
+        float angle = std::acos(glm::dot(last_orientation.direction, next_orientation.direction)); // [rad]
         float dt = time - last_orientation.start;
 
         // todo ugh
         glm::vec3 direction_vector = glm::vec3(last_orientation.direction.x, last_orientation.direction.y,
-                                               last_orientation.direction.z);
-        glm::vec3 tmp = glm::vec3(next_orientation.direction.x, next_orientation.direction.y,
-                                  next_orientation.direction.z);
-        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()),
-                                       glm::cross(direction_vector, tmp));
+                                               last_orientation.direction.z); // todo useless
+        glm::vec3 tmp = glm::vec3(next_orientation.direction.x, next_orientation.direction.y, next_orientation.direction.z);
+        direction_vector =
+            glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()), glm::cross(direction_vector, tmp));
 
         VertexData origin(position);
-        VertexData direction(position +
-                             Vector3D(direction_vector.x, direction_vector.y, direction_vector.z) * 0.025f);
+        VertexData direction(position + glm::vec3(direction_vector.x, direction_vector.y, direction_vector.z) * 0.025f);
 
         origin.setColor(1.0f, 1.0f, 1.0f);
         direction.setColor(1.0f, 1.0f, 1.0f);
@@ -457,15 +452,13 @@ void OpenGLWidget::recalculateEdges() {
 }
 
 void OpenGLWidget::wheelEvent(QWheelEvent* event) {
-    float zoom_per_deg = .001f * zoom * 2.5f; // depends on current zoom value to avoid endless scrolling for
-                                              // high- and too big jumps for small zoom values
+    float zoom_per_deg = .001f * zoom * 2.5f;     // depends on current zoom value to avoid endless scrolling for
+                                                  // high- and too big jumps for small zoom values
     int turned_deg = event->angleDelta().y() / 8; // negative if zoomed out
     zoom += turned_deg * zoom_per_deg;            // if the zoom value increase -> zoom out
 }
 
-void OpenGLWidget::mousePressEvent(QMouseEvent* event) {
-    mouse_start_location = glm::vec2(event->pos().x(), event->pos().y());
-}
+void OpenGLWidget::mousePressEvent(QMouseEvent* event) { mouse_start_location = glm::vec2(event->pos().x(), event->pos().y()); }
 
 void OpenGLWidget::mouseReleaseEvent(QMouseEvent* event) {
     view *= camera_rotation;           // save rotation

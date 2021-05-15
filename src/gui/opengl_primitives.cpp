@@ -150,7 +150,7 @@ Mesh OpenGLPrimitives::createOrbit(const Orbit& orbit, const float scale, const 
     for (int i = 0; i <= number_of_sides; i++) {
         VertexData vertex = VertexData();
         float t = i * orbit.getPeriod() / number_of_sides;
-        Vector3D cartesian_coords = orbit.cartesian_coordinates(t) / scale;
+        glm::vec3 cartesian_coords = orbit.cartesian_coordinates(t) / scale;
         // Vertices
         vertex.x = center.x + cartesian_coords.x;
         vertex.y = center.y + cartesian_coords.y;

@@ -3,7 +3,6 @@
 
 #include "../instance/edge.h"
 #include "../instance/orbit.h"
-#include "../instance/vector3d.h"
 #include <algorithm>
 #include <vector>
 

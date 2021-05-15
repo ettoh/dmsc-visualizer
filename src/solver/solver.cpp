@@ -1,6 +1,7 @@
 #include "solver.h"
 #include <cmath>
 
+#include "vdmsc/glm_include.h"
 #include <ctime>
 #include <fstream>
 #include <random>
@@ -34,8 +35,8 @@ float Solver::nextCommunication(const Edge& edge, const float time_0) {
 
     // satellites can't align => search for a time where they can
     // max time to align ==> time for a 180� turn
-    float t_max =
-        std::max(static_cast<float>(M_PI) / edge.getV1().getMeanRotationSpeed(), static_cast<float>(M_PI) / edge.getV2().getMeanRotationSpeed());
+    float t_max = std::max(static_cast<float>(M_PI) / edge.getV1().getMeanRotationSpeed(),
+                           static_cast<float>(M_PI) / edge.getV2().getMeanRotationSpeed());
     t_max += edge.getPeriod();
 
     for (float t = t_visible; t <= time_0 + t_max; t += step_size) {
@@ -133,21 +134,20 @@ float Solver::findLastVisible(const Edge& edge, const float t0) const {
 
 bool Solver::sphereIntersection(const Edge& edge, const float time) {
     // represent edge as a unit vector with origin at one of the satellites
-    Vector3D sat1 = edge.getV1().cartesian_coordinates(time);
-    Vector3D sat2 = edge.getV2().cartesian_coordinates(time);
-    Vector3D direction = normalize(sat2 - sat1);
+    glm::vec3 sat1 = edge.getV1().cartesian_coordinates(time);
+    glm::vec3 sat2 = edge.getV2().cartesian_coordinates(time);
+    glm::vec3 direction = glm::normalize(sat2 - sat1);
 
     // Parameter of sphere (Earth)
-    Vector3D sphere_center = Vector3D();
+    glm::vec3 sphere_center = glm::vec3();
     float radius_earth = 6378; // todo store in instance
 
     // Check for intersection with a sphere (earth)
-    Vector3D distance_to_center = sat1 - sphere_center;
+    glm::vec3 distance_to_center = sat1 - sphere_center;
 
-    float a = dot_product(direction, distance_to_center);
-    float l = distance_to_center.length();
-    float discr =
-        a * a - (dot_product(distance_to_center, distance_to_center) - (radius_earth * radius_earth));
+    float a = glm::dot(direction, distance_to_center);
+    float l = glm::length(distance_to_center);
+    float discr = a * a - (glm::dot(distance_to_center, distance_to_center) - (radius_earth * radius_earth));
 
     // no intersection at all
     if (discr <= 0.0)
@@ -160,7 +160,7 @@ bool Solver::sphereIntersection(const Edge& edge, const float time) {
         return false;
 
     // intersection after the ray hit the second satellite
-    float dist_between_sat = (sat1 - sat2).length();
+    float dist_between_sat = glm::length(sat1 - sat2);
     if (d1 >= dist_between_sat && d2 >= dist_between_sat)
         return false;
 
@@ -174,8 +174,7 @@ ScanCover Solver::evaluateEdgeOrder(const EdgeOrder& edge_order) {
 
     for (int i : edge_order) {
         const Edge& e = instance.edges.at(i);
-        float t_min =
-            std::max(satellite_orientation[&e.getV1()].start, satellite_orientation[&e.getV2()].start);
+        float t_min = std::max(satellite_orientation[&e.getV1()].start, satellite_orientation[&e.getV2()].start);
         float t_next = nextCommunication(e, t_min);
         if (t_next >= INFINITY) {
             continue;

@@ -60,4 +60,4 @@ target_include_directories(vdmsc
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(vdmsc Qt5::Widgets instance solver gui glfw)
+target_link_libraries(vdmsc Qt5::Widgets glm::glm glfw instance solver gui)

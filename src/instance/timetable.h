@@ -2,7 +2,6 @@
 #define TIMETABLE_H
 
 #include "orbit.h"
-#include "vector3d.h"
 #include <map>
 #include <set>
 

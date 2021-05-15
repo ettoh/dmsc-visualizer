@@ -6,8 +6,8 @@
 #include "../instance/problem_instance.h"
 #include "../instance/timetable.h"
 #include "../solver/scan_cover.h"
-#include "glm_include.h"
 #include "opengl_primitives.h"
+#include "vdmsc/glm_include.h"
 #include <QOpenGLWidget>
 #include <QOpenglFunctions_3_3_core.h>
 #include <chrono>
@@ -80,9 +80,9 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     void deleteInstance();
 
   private:
-    const float real_world_scale = 7000.0f; 
+    const float real_world_scale = 7000.0f;
     // handler
-    GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0; 
+    GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
     GLuint vbo_uniforms = 0;
     GLuint texture_id = 0;
     GLint uniform_texture_location = 0;
@@ -102,9 +102,9 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     std::vector<OpenGLPrimitives::Subscene> scene;
     SysTime_t last_frame_time = std::chrono::system_clock::now();
     float time = .0f;
-    float time_boost = 1.0f;                                  // 1sec realtime -> time_boos sec in simulation
-    bool paused = false;                                      // if true -> the simulations is paused
-    OpenGLPrimitives::Subscene* satellite_subscene = nullptr; 
+    float time_boost = 1.0f; // 1sec realtime -> time_boos sec in simulation
+    bool paused = false;     // if true -> the simulations is paused
+    OpenGLPrimitives::Subscene* satellite_subscene = nullptr;
     OpenGLPrimitives::Subscene* edge_subscene = nullptr;
     // solution
     ScanCover solution = ScanCover();

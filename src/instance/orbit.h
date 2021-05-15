@@ -2,7 +2,7 @@
 #define ORBIT_H
 
 #define _USE_MATH_DEFINES
-#include "vector3d.h" // todo get rid?
+#include "vdmsc/glm_include.h"
 #include <cmath>
 #include <exception>
 #include <iostream>
@@ -27,12 +27,11 @@ struct Orbit {
         : gravitational_parameter(gravitational_parameter), semi_major_axis(semi_major_axis) {
 
         period = 2.0f * static_cast<float>(M_PI) * sqrtf(powf(semi_major_axis, 3.0f) / gravitational_parameter); // [sec]
-        mean_angular_speed = (2.0f * static_cast<float>(M_PI)) / period; // [rad/sec]
+        mean_angular_speed = (2.0f * static_cast<float>(M_PI)) / period;                                         // [rad/sec]
     }
 
     // Circular orbit in 2D with initial true anomaly
-    Orbit(const bool in_rad, const float gravitational_parameter, const float semi_major_axis,
-          float true_anomaly)
+    Orbit(const bool in_rad, const float gravitational_parameter, const float semi_major_axis, float true_anomaly)
         : Orbit(gravitational_parameter, semi_major_axis) {
 
         if (!in_rad)
@@ -42,9 +41,8 @@ struct Orbit {
     };
 
     // Orbit in 3D
-    Orbit(const bool in_rad, const float gravitational_parameter, const float semi_major_axis,
-          const float true_anomaly, float inclination, float raan, float perigee, const float rotation_speed,
-          const float eccentricity)
+    Orbit(const bool in_rad, const float gravitational_parameter, const float semi_major_axis, const float true_anomaly,
+          float inclination, float raan, float perigee, const float rotation_speed, const float eccentricity)
         : Orbit(in_rad, gravitational_parameter, semi_major_axis, true_anomaly) {
 
         if (!in_rad) {
@@ -77,8 +75,8 @@ struct Orbit {
      * @param time [sec] Determines satellite position in orbit.
      * @return (x, y, z) coordinates
      */
-    Vector3D cartesian_coordinates(const float time) const {
-        Vector3D cartesian_coordinates;
+    glm::vec3 cartesian_coordinates(const float time) const {
+        glm::vec3 cartesian_coordinates;
         float current_true_anomaly = 0.0f;
         float radius = 0.0f;
 
@@ -87,20 +85,19 @@ struct Orbit {
             current_true_anomaly = true_anomaly + mean_angular_speed * time;
             radius = semi_major_axis;
         } else if (eccentricity < 1.0f && eccentricity > 0.0f) { // ellipse - numerical iteration needed
-            float mean_anomaly = fmodf((2.0f * static_cast<float>(M_PI) / period) * time, 2.0f * static_cast<float>(M_PI)); // [rad]
-            float x = mean_anomaly; // todo
+            float mean_anomaly =
+                fmodf((2.0f * static_cast<float>(M_PI) / period) * time, 2.0f * static_cast<float>(M_PI)); // [rad]
+            float x = mean_anomaly;                                                                        // todo
             float x_next;
 
             for (int i = 0; i < 30; i++) {
-                x_next = x - ((x - eccentricity * sinf(x) - mean_anomaly) /
-                              (1 - eccentricity * cosf(x)));
+                x_next = x - ((x - eccentricity * sinf(x) - mean_anomaly) / (1 - eccentricity * cosf(x)));
                 if (fabsf(x_next - x) <= 0.00001f) {
                     break;
                 }
                 x = x_next;
             }
-            current_true_anomaly =
-                2 * atanf(std::sqrt((1 + eccentricity) / (1 - eccentricity)) * tanf(x_next / 2.0f));
+            current_true_anomaly = 2 * atanf(std::sqrt((1 + eccentricity) / (1 - eccentricity)) * tanf(x_next / 2.0f));
             radius = (semi_major_axis - semi_major_axis * eccentricity * eccentricity) /
                      (1 + eccentricity * cosf(current_true_anomaly));
             // todo startwert falls e gro�
@@ -111,19 +108,17 @@ struct Orbit {
 
         // Equation 2.16 (MIS) - ONLY Circular Orbits
         float rotation_angle = argument_periapsis + current_true_anomaly;
-        cartesian_coordinates.x =
-            radius * (cos(rotation_angle) * sin(raan) + sin(rotation_angle) * cos(inclination) * cos(raan));
+        cartesian_coordinates.x = radius * (cos(rotation_angle) * sin(raan) + sin(rotation_angle) * cos(inclination) * cos(raan));
         cartesian_coordinates.y = radius * (sin(rotation_angle) * sin(inclination));
-        cartesian_coordinates.z =
-            radius * (cos(rotation_angle) * cos(raan) - sin(rotation_angle) * cos(inclination) * sin(raan));
+        cartesian_coordinates.z = radius * (cos(rotation_angle) * cos(raan) - sin(rotation_angle) * cos(inclination) * sin(raan));
         return cartesian_coordinates;
     }
 };
 
 struct Orientation {
-    Vector3D direction = Vector3D(0.0f);
+    glm::vec3 direction = glm::vec3(0.0f);
     float start = .0f;
-    //float end = -1.0f;
+    // float end = -1.0f;
     friend bool operator<(const Orientation& e, const Orientation& f) { return e.start < f.start; }
     Orientation() = default;
     Orientation(const float start) { this->start = start; }

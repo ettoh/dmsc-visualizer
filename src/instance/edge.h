@@ -2,6 +2,7 @@
 #define EDGE_H
 
 #include "orbit.h"
+#include "vdmsc/glm_include.h"
 
 struct EdgeOrientation {
     Orientation sat1 = Orientation();
@@ -35,16 +36,14 @@ struct Edge {
      * @return True, if edge is blocked.
      */
     bool isBlocked(const float time) const {
-        Vector3D sat1 = v1->cartesian_coordinates(time);
-        Vector3D sat2 = v2->cartesian_coordinates(time);
+        glm::vec3 sat1 = v1->cartesian_coordinates(time);
+        glm::vec3 sat2 = v2->cartesian_coordinates(time);
 
-        if (v1->getEccentricity() == 0.0f &&
-            v2->getEccentricity() == 0.0f) { // both satellites are circular => easier to compute
-            double angle_sats = std::acos(dot_product(sat1, sat2) /
-                                          (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
+        if (v1->getEccentricity() == 0.0f && v2->getEccentricity() == 0.0f) { // both satellites are circular => easier to compute
+            double angle_sats = std::acos(glm::dot(sat1, sat2) / (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
 
-            // numeric
-            Vector3D tmp = sat1 + sat2;
+            // glm::vec3
+            glm::vec3 tmp = sat1 + sat2;
             if (std::abs(tmp.x) < 0.01f && std::abs(tmp.y) < 0.01f && std::abs(tmp.z) < 0.01f) {
                 angle_sats = M_PI;
             }
@@ -65,12 +64,12 @@ struct Edge {
         float angle_sat2 = .0f;
 
         // calc angle between orientations; direction vectors must be length 1
-        if (sat1.direction != 0.0f) {
-            angle_sat1 = std::acos(dot_product(sat1.direction, target.sat1.direction)); // [rad]
+        if (sat1.direction != glm::vec3(0.0f)) {
+            angle_sat1 = std::acos(glm::dot(sat1.direction, target.sat1.direction)); // [rad]
         }
 
-        if (sat2.direction != 0.0f) {
-            angle_sat2 = std::acos(dot_product(sat2.direction, target.sat2.direction)); // [rad]
+        if (sat2.direction != glm::vec3(0.0f)) {
+            angle_sat2 = std::acos(glm::dot(sat2.direction, target.sat2.direction)); // [rad]
         }
 
         // time needed for alignment
@@ -92,10 +91,10 @@ struct Edge {
      */
     EdgeOrientation getOrientation(const float time) const {
         EdgeOrientation result;
-        Vector3D sat1 = v1->cartesian_coordinates(time);
-        Vector3D sat2 = v2->cartesian_coordinates(time);
-        result.sat1.direction = normalize(sat2 - sat1);
-        result.sat2.direction = normalize(sat1 - sat2);
+        glm::vec3 sat1 = v1->cartesian_coordinates(time);
+        glm::vec3 sat2 = v2->cartesian_coordinates(time);
+        result.sat1.direction = glm::normalize(sat2 - sat1);
+        result.sat2.direction = glm::normalize(sat1 - sat2);
         result.sat1.start = time;
         result.sat2.start = time;
         return result;

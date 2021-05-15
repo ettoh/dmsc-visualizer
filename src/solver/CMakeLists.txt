@@ -6,3 +6,5 @@ add_library(solver
     solver.h solver.cpp 
     iterated_local_search.h iterated_local_search.cpp 
     simulated_annealing.h simulated_annealing.cpp)
+
+target_link_libraries(solver vdmsc) # TODO temporary
