@@ -407,16 +407,13 @@ void OpenGLWidget::recalculateEdges() {
         float angle = std::acos(glm::dot(last_orientation.direction, next_orientation.direction)); // [rad]
         float dt = time - last_orientation.start;
 
-        // todo ugh
-        glm::vec3 direction_vector = glm::vec3(last_orientation.direction.x, last_orientation.direction.y,
-                                               last_orientation.direction.z); // todo useless
-        glm::vec3 tmp = glm::vec3(next_orientation.direction.x, next_orientation.direction.y, next_orientation.direction.z);
+        glm::vec3 direction_vector = last_orientation.direction;
         direction_vector =
-            glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()), glm::cross(direction_vector, tmp));
+            glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()), glm::cross(direction_vector, next_orientation.direction));
 
         VertexData origin(position);
-        VertexData direction(position + glm::vec3(direction_vector.x, direction_vector.y, direction_vector.z) * 0.025f);
-
+        VertexData direction(position + direction_vector * 0.025f);
+        
         origin.setColor(1.0f, 1.0f, 1.0f);
         direction.setColor(1.0f, 1.0f, 1.0f);
 
