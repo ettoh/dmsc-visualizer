@@ -3,8 +3,8 @@
 
 #define _USE_MATH_DEFINES
 
-#include "../instance/orbit.h"
 #include "vdmsc/glm_include.h"
+#include "vdmsc/orbit.h"
 #include <QOpenGLFunctions_3_3_Core>
 #include <math.h>
 #include <vector>

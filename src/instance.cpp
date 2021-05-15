@@ -1,4 +1,4 @@
-#include "problem_instance.h"
+#include "vdmsc/instance.h"
 #include <algorithm>
 #include <fstream>
 #include <map>

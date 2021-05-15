@@ -1,7 +1,7 @@
 #include "dialog_instance.h"
-#include "../instance/orbit.h"
 #include "dialog_add_edges.h"
 #include "ui_dialog_instance.h"
+#include "vdmsc/orbit.h"
 #include <QCheckBox>
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -21,18 +21,13 @@ DialogInstance::DialogInstance(QWidget* parent) : QDialog(parent), ui(new Ui::Di
     connect(ui->btn_add_edge, SIGNAL(released()), this, SLOT(addEdgeDialog()));
 
     // connect "range"-checkbox signals
-    connect(ui->chk_ecc, &QCheckBox::stateChanged,
-            [this](int state) { ui->nbr_ecc_max->setEnabled(state == Qt::Checked); });
+    connect(ui->chk_ecc, &QCheckBox::stateChanged, [this](int state) { ui->nbr_ecc_max->setEnabled(state == Qt::Checked); });
     connect(ui->chk_height, &QCheckBox::stateChanged,
             [this](int state) { ui->nbr_height_max->setEnabled(state == Qt::Checked); });
-    connect(ui->chk_incl, &QCheckBox::stateChanged,
-            [this](int state) { ui->nbr_incl_max->setEnabled(state == Qt::Checked); });
-    connect(ui->chk_peri, &QCheckBox::stateChanged,
-            [this](int state) { ui->nbr_peri_max->setEnabled(state == Qt::Checked); });
-    connect(ui->chk_pos, &QCheckBox::stateChanged,
-            [this](int state) { ui->nbr_pos_max->setEnabled(state == Qt::Checked); });
-    connect(ui->chk_raan, &QCheckBox::stateChanged,
-            [this](int state) { ui->nbr_raan_max->setEnabled(state == Qt::Checked); });
+    connect(ui->chk_incl, &QCheckBox::stateChanged, [this](int state) { ui->nbr_incl_max->setEnabled(state == Qt::Checked); });
+    connect(ui->chk_peri, &QCheckBox::stateChanged, [this](int state) { ui->nbr_peri_max->setEnabled(state == Qt::Checked); });
+    connect(ui->chk_pos, &QCheckBox::stateChanged, [this](int state) { ui->nbr_pos_max->setEnabled(state == Qt::Checked); });
+    connect(ui->chk_raan, &QCheckBox::stateChanged, [this](int state) { ui->nbr_raan_max->setEnabled(state == Qt::Checked); });
 
     // prepare tables
     QStringList edges_header = {"Orbit 1", "Orbit 2"};
@@ -40,8 +35,7 @@ DialogInstance::DialogInstance(QWidget* parent) : QDialog(parent), ui(new Ui::Di
     ui->table_edges->setHorizontalHeaderLabels(edges_header);
     ui->table_edges->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-    QStringList orbits_header = {"hp",   "e",       "true anomaly",  "inclination",
-                                 "raan", "perigee", "rotation speed"};
+    QStringList orbits_header = {"hp", "e", "true anomaly", "inclination", "raan", "perigee", "rotation speed"};
     ui->table_orbits->setColumnCount(7);
     ui->table_orbits->setHorizontalHeaderLabels(orbits_header);
     ui->table_orbits->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -66,8 +60,8 @@ void DialogInstance::accept() {
         s.rotation_speed = ((TableItem*)ui->table_orbits->item(i, 6))->data;
         float a = (s.hp + radius_central_mass) /
                   (1 - s.eccentricity); // calc semimajor axis depending on perigee height and eccentricity
-        instance.orbits.emplace_back(false, gravitational_parameter, a, s.true_anomaly, s.inclination, s.raan,
-                                     s.perigee, s.rotation_speed, s.eccentricity);
+        instance.orbits.emplace_back(false, gravitational_parameter, a, s.true_anomaly, s.inclination, s.raan, s.perigee,
+                                     s.rotation_speed, s.eccentricity);
     }
 
     // 2. edges
@@ -194,8 +188,7 @@ void DialogInstance::addOrbit(const StateVector& s) {
     ui->table_orbits->setItem(row_index, 3, new TableItem(QString::number(s.inclination), s.inclination));
     ui->table_orbits->setItem(row_index, 4, new TableItem(QString::number(s.raan), s.raan));
     ui->table_orbits->setItem(row_index, 5, new TableItem(QString::number(s.perigee), s.perigee));
-    ui->table_orbits->setItem(row_index, 6,
-                              new TableItem(QString::number(s.rotation_speed), s.rotation_speed));
+    ui->table_orbits->setItem(row_index, 6, new TableItem(QString::number(s.rotation_speed), s.rotation_speed));
 }
 
 void DialogInstance::addEdge(const int orbit1, const int orbit2) {
@@ -270,8 +263,8 @@ void DialogInstance::prepareRandomGenerator() {
     }
 }
 
-float DialogInstance::getValue(const QDoubleSpinBox* min_obj, const QDoubleSpinBox* max_obj, const int mode,
-                               const float x, const bool is_ranged) {
+float DialogInstance::getValue(const QDoubleSpinBox* min_obj, const QDoubleSpinBox* max_obj, const int mode, const float x,
+                               const bool is_ranged) {
     float value_min = min_obj->value();
     float value_max = max_obj->value();
     if (!is_ranged) {

@@ -1,6 +1,6 @@
 #include "iterated_local_search.h"
-#include "../instance/edge.h"
 #include "greedy_next.h"
+#include "vdmsc/edge.h"
 #include <ctime>
 #include <random>
 
@@ -67,7 +67,7 @@ EdgeOrder ILS::localSearch(EdgeOrder init_order) {
         EdgeOrder ls_best_neighbour = ls_best_order;
         float ls_best_neighbour_time = evaluateEdgeOrder(ls_best_neighbour).getScanTime();
         for (int i = 0; i < (int)ls_best_order.size() - 1; i++) {
-            for (int j = i + 1; j < ls_best_order.size(); j++) {           
+            for (int j = i + 1; j < ls_best_order.size(); j++) {
                 EdgeOrder neighbour = ls_best_order;
                 int tmp = neighbour[i];
                 neighbour[i] = neighbour.at(j);

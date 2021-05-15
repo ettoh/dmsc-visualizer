@@ -1,10 +1,10 @@
 #ifndef SOLVER_H
 #define SOLVER_H
 
-#include "../instance/orbit.h"
-#include "../instance/problem_instance.h"
-#include "../instance/timetable.h"
 #include "scan_cover.h"
+#include "vdmsc/instance.h"
+#include "vdmsc/orbit.h"
+#include "vdmsc/timetable.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -32,9 +32,7 @@ class Solver {
   public:
     Solver(const ProblemInstance& instance) : instance(ProblemInstance(instance)) { createCache(); };
 
-    Solver(const ProblemInstance& instance, Callback callback) : Solver(instance) {
-        this->callback = callback;
-    };
+    Solver(const ProblemInstance& instance, Callback callback) : Solver(instance) { this->callback = callback; };
 
     virtual ScanCover solve() = 0;
     float lowerBound();
@@ -90,8 +88,7 @@ class Solver {
     void createCache();
 
     Timetable<Edge, TimeSlot> edge_time_slots = Timetable<Edge, TimeSlot>();
-    std::map<const Edge*, float>
-        edge_cache_progress; // max. time for which cache (for visibility) is avaiable
+    std::map<const Edge*, float> edge_cache_progress; // max. time for which cache (for visibility) is avaiable
 
     [[deprecated]] bool sphereIntersection(const Edge& edge, const float time);
 };

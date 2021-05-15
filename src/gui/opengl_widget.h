@@ -3,11 +3,11 @@
 
 #define _USE_MATH_DEFINES
 
-#include "../instance/problem_instance.h"
-#include "../instance/timetable.h"
 #include "../solver/scan_cover.h"
 #include "opengl_primitives.h"
 #include "vdmsc/glm_include.h"
+#include "vdmsc/instance.h"
+#include "vdmsc/timetable.h"
 #include <QOpenGLWidget>
 #include <QOpenglFunctions_3_3_core.h>
 #include <chrono>

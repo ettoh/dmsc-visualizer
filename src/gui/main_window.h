@@ -1,9 +1,9 @@
 #ifndef MAIN_WINDOW_H
 #define MAIN_WINDOW_H
 
-#include "../instance/problem_instance.h"
 #include "../solver/scan_cover.h"
 #include "opengl_widget.h"
+#include "vdmsc/instance.h"
 #include <QMainWindow>
 #include <QProgressDialog>
 #include <QSurfaceFormat>
@@ -11,14 +11,14 @@
 #include <future>
 
 namespace Ui {
-    class MainWindow;
+class MainWindow;
 }
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
   public:
     MainWindow();
-    void solverCallback(const float progress);    
+    void solverCallback(const float progress);
 
   private:
     Ui::MainWindow* ui;

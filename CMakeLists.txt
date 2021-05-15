@@ -29,7 +29,6 @@ find_package(glm REQUIRED)
 find_package(glfw3 REQUIRED)
 
 add_library(vdmsc STATIC)
-add_subdirectory(./src/instance)
 add_subdirectory(./src/solver)
 add_subdirectory(./src/gui)
 
@@ -46,6 +45,7 @@ set(imgui_files
 target_sources(vdmsc
     PRIVATE
         src/gui.cpp
+        src/instance.cpp
         src/glad/glad.c
         ${imgui_files}
 )
@@ -60,4 +60,4 @@ target_include_directories(vdmsc
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(vdmsc Qt5::Widgets glm::glm glfw instance solver gui)
+target_link_libraries(vdmsc Qt5::Widgets glm::glm glfw solver gui)
