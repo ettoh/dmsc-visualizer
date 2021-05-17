@@ -1,7 +1,7 @@
 #ifndef EDGE_H
 #define EDGE_H
 
-#include "Orbit.h"
+#include "satellite.h"
 #include "vdmsc/glm_include.h"
 
 namespace dmsc {
@@ -13,15 +13,15 @@ struct EdgeOrientation {
 
 struct Edge {
   private:
-    const dmsc::Orbit* v1;
-    const dmsc::Orbit* v2;
+    const dmsc::Satellite* v1;
+    const dmsc::Satellite* v2;
     float period;              // [sec] time until satellite constellations repeat
     float max_angle;           // [rad] max angle for satellites to see each other
     float radius_central_mass; // [km]
 
   public:
     // only defined for circular Orbits!
-    Edge(const dmsc::Orbit* v1, const dmsc::Orbit* v2, const float radius_central_mass)
+    Edge(const dmsc::Satellite* v1, const dmsc::Satellite* v2, const float radius_central_mass)
         : v1{v1}, v2{v2}, radius_central_mass(radius_central_mass) {
 
         period = v1->getPeriod();
@@ -75,8 +75,8 @@ struct Edge {
         }
 
         // time needed for alignment
-        float turn_time_s1 = angle_sat1 / v1->getMeanRotationSpeed(); // [sec]
-        float turn_time_s2 = angle_sat2 / v2->getMeanRotationSpeed(); // [sec]
+        float turn_time_s1 = angle_sat1 / v1->getRotationSpeed(); // [sec]
+        float turn_time_s2 = angle_sat2 / v2->getRotationSpeed(); // [sec]
 
         // enough time?
         if (turn_time_s1 > t - sat1.start || turn_time_s2 > t - sat2.start) {
@@ -104,8 +104,8 @@ struct Edge {
 
     float getPeriod() const { return period; }
     float getMaxAngle() const { return max_angle; }
-    const dmsc::Orbit& getV1() const { return *v1; }
-    const dmsc::Orbit& getV2() const { return *v2; }
+    const dmsc::Satellite& getV1() const { return *v1; }
+    const dmsc::Satellite& getV2() const { return *v2; }
     float getRadiusCentralMass() const { return radius_central_mass; }
 };
 

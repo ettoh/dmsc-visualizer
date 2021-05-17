@@ -2,7 +2,7 @@
 #define SCAN_COVER_H
 
 #include "vdmsc/edge.h"
-#include "vdmsc/orbit.h"
+#include "vdmsc/satellite.h"
 #include <algorithm>
 #include <vector>
 

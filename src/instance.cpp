@@ -15,18 +15,20 @@ Instance::Instance(const Instance& source) {
 
     // copy all orbits and store old location for edges later
     orbits = source.orbits;
-    std::map<const Orbit*, const Orbit*> orbit_map; // old pos: key | new pos: value
+    std::map<const Satellite*, const Satellite*> orbit_map; // old pos: key | new pos: value
     for (int i = 0; i < orbits.size(); i++) {
         orbit_map[&source.orbits[i]] = &orbits[i];
     }
 
     // edges must point to the new orbit objects
     for (const Edge& edge : source.edges) {
-        const Orbit* new_v1 = orbit_map[&edge.getV1()];
-        const Orbit* new_v2 = orbit_map[&edge.getV2()];
+        const Satellite* new_v1 = orbit_map[&edge.getV1()];
+        const Satellite* new_v2 = orbit_map[&edge.getV2()];
         edges.emplace_back(new_v1, new_v2, edge.getRadiusCentralMass());
     }
 }
+
+// ------------------------------------------------------------------------------------------------
 
 Instance::Instance(const std::string& file) {
     // load instance from file
@@ -57,23 +59,23 @@ Instance::Instance(const std::string& file) {
                 gravitational_parameter = std::stof(value_cache);
                 break;
             case READ_ORBIT: {
+                StateVector sv;
                 std::getline(ss, value_cache, ','); // ignore id - order implies id
                 std::getline(ss, value_cache, ',');
-                float a = std::stof(value_cache);
+                sv.height_perigee = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float eccentricity = std::stof(value_cache);
+                sv.eccentricity = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
                 float anomaly = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float raan = std::stof(value_cache);
+                sv.raan = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float perigee = std::stof(value_cache);
+                sv.argument_periapsis = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float inclination = std::stof(value_cache);
+                sv.inclination = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float rotation_speed = std::stof(value_cache);
-                orbits.emplace_back(true, gravitational_parameter, a, anomaly, inclination, raan, perigee, rotation_speed,
-                                    eccentricity);
+                sv.rotation_speed = std::stof(value_cache);
+                orbits.push_back(Satellite(sv, anomaly, gravitational_parameter, radius_central_mass));
                 break;
             }
             case READ_EDGE: {
@@ -95,6 +97,8 @@ Instance::Instance(const std::string& file) {
     is.close();
 }
 
+// ------------------------------------------------------------------------------------------------
+
 Instance& Instance::operator=(const Instance& source) {
     // check for self-assignment
     if (&source == this)
@@ -106,7 +110,7 @@ Instance& Instance::operator=(const Instance& source) {
     // copy all orbits and store old location for edges later
     orbits = source.orbits;
     orbits.shrink_to_fit();
-    std::map<const Orbit*, const Orbit*> orbit_map; // old pos: key | new pos: value
+    std::map<const Satellite*, const Satellite*> orbit_map; // old pos: key | new pos: value
     for (int i = 0; i < orbits.size(); i++) {
         orbit_map[&source.orbits[i]] = &orbits[i];
     }
@@ -114,14 +118,16 @@ Instance& Instance::operator=(const Instance& source) {
     // edges must point to the new orbit objects
     edges.clear();
     for (const Edge& edge : source.edges) {
-        const Orbit* new_v1 = orbit_map[&edge.getV1()];
-        const Orbit* new_v2 = orbit_map[&edge.getV2()];
+        const Satellite* new_v1 = orbit_map[&edge.getV1()];
+        const Satellite* new_v2 = orbit_map[&edge.getV2()];
         edges.emplace_back(new_v1, new_v2, edge.getRadiusCentralMass());
     }
     edges.shrink_to_fit();
 
     return *this;
 }
+
+// ------------------------------------------------------------------------------------------------
 
 void Instance::removeInvalidEdges() {
     for (int i = (int)edges.size() - 1; i >= 0; i--) {
@@ -141,6 +147,8 @@ void Instance::removeInvalidEdges() {
     }
     edges.shrink_to_fit();
 }
+
+// ------------------------------------------------------------------------------------------------
 
 LineGraph Instance::lineGraph() const {
     LineGraph g;
@@ -177,6 +185,8 @@ LineGraph Instance::lineGraph() const {
     return g;
 }
 
+// ------------------------------------------------------------------------------------------------
+
 bool Instance::save(const std::string& file) const {
     std::ofstream fs(file);
     if (fs.fail()) {
@@ -186,7 +196,7 @@ bool Instance::save(const std::string& file) const {
     /* File format:
      *   radius, gravitational parameter
      *   ===END===
-     *   orbit index, a, eccentricity, anomaly, raan, perigee, inclination, rotation speed
+     *   orbit index, a, eccentricity, height_perigee, raan, perigee, inclination, rotation speed
      *   [...]
      *   ===END===
      *   edge orbit index A, edge orbit index B
@@ -199,18 +209,18 @@ bool Instance::save(const std::string& file) const {
     fs << "===END===\n";
 
     // orbits
-    std::map<const Orbit*, int> orbit_to_id;
+    std::map<const Satellite*, int> orbit_to_id;
     for (int i = 0; i < orbits.size(); i++) {
-        const Orbit& orbit = orbits.at(i);
+        const Satellite& orbit = orbits.at(i);
         orbit_to_id[&orbit] = i;
         fs << i << ",";
-        fs << orbit.getSemiMajorAxis() << ",";
+        fs << orbit.getHeightPerigee() << ",";
         fs << orbit.getEccentricity() << ",";
         fs << orbit.getTrueAnomaly() << ",";
         fs << orbit.getRaan() << ",";
         fs << orbit.getArgumentPeriapsis() << ",";
         fs << orbit.getInclination() << ",";
-        fs << orbit.getMeanRotationSpeed() << "\n";
+        fs << orbit.getRotationSpeed() << "\n";
     }
     fs << "===END===\n";
 
@@ -223,5 +233,10 @@ bool Instance::save(const std::string& file) const {
     fs.close();
     return true;
 }
+
+// ------------------------------------------------------------------------------------------------
+
+float rad(const float deg) { return deg * 0.01745329251994329577f; }; // convert degrees to radians
+float deg(const float rad) { return rad * 57.2957795130823208768f; }; // convert radians to degrees
 
 } // namespace dmsc

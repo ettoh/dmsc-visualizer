@@ -2,7 +2,7 @@
 #define INSTANCE_H
 
 #include "edge.h"
-#include "orbit.h"
+#include "satellite.h"
 #include <map>
 #include <string>
 #include <vector>
@@ -11,9 +11,13 @@ namespace dmsc {
 
 using AdjacentList = std::vector<int>;
 
+// ------------------------------------------------------------------------------------------------
+
 struct LineGraph {
     std::vector<AdjacentList> edges;
 };
+
+// ------------------------------------------------------------------------------------------------
 
 struct Instance {
   private:
@@ -22,7 +26,7 @@ struct Instance {
     enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
 
   public:
-    std::vector<Orbit> orbits;
+    std::vector<Satellite> orbits;
     std::vector<Edge> edges;
 
     Instance() = default;
@@ -31,17 +35,23 @@ struct Instance {
      * @param radius_central_mass [km]
      */
     Instance(const float gravitational_parameter, const float radius_central_mass)
-        : gravitational_parameter(gravitational_parameter), radius_central_mass(radius_central_mass) {}
+        : gravitational_parameter(gravitational_parameter)
+        , radius_central_mass(radius_central_mass) {}
     Instance(const Instance& source);
     Instance(const std::string& file);
     Instance& operator=(const Instance& source);
 
-    void addOrbit(const Orbit& orbit) { orbits.push_back(Orbit(orbit)); }
+    void addOrbit(const Satellite& orbit) { orbits.push_back(Satellite(orbit)); }
     float getRadiusCentralMass() const { return radius_central_mass; }
     void removeInvalidEdges();
     LineGraph lineGraph() const;
     bool save(const std::string& file) const;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+float rad(const float deg); // convert degrees to radians
+float deg(const float rad); // convert radians to degrees
 
 } // namespace dmsc
 

@@ -153,7 +153,7 @@ void OpenGLWidget::visualizeInstance(const Instance& instance) {
     // 1. build meshes and push them to the gpu
     Mesh sphere = OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
-    for (const Orbit& o : problem_instance.orbits) {
+    for (const Satellite& o : problem_instance.orbits) {
         // Orbit
         Mesh orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
         static_subscene.add(orbit);
@@ -348,7 +348,7 @@ void OpenGLWidget::recalculateOrbitPositions() {
     if (problem_instance.orbits.size() != 0) // size() will fail if no orbits in instance
         // assume that all satellites have the same amount of vertices
         nmbr_vertecies = satellite_subscene->getObjects().at(0).number_vertices;
-    for (const Orbit& o : problem_instance.orbits) {
+    for (const Satellite& o : problem_instance.orbits) {
         glm::vec3 offset = o.cartesian_coordinates(time) / real_world_scale;
         for (int i = 0; i < nmbr_vertecies; i++) {
             positions.push_back(offset.x);
@@ -410,7 +410,7 @@ void OpenGLWidget::recalculateEdges() {
         float dt = time - last_orientation.start;
 
         glm::vec3 direction_vector = last_orientation.direction;
-        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()),
+        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * orbit.getRotationSpeed()),
                                        glm::cross(direction_vector, next_orientation.direction));
 
         VertexData origin(position);

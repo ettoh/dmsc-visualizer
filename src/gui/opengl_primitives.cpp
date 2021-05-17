@@ -144,7 +144,7 @@ Mesh OpenGLPrimitives::createSatellite() {
     return model;
 }
 
-Mesh OpenGLPrimitives::createOrbit(const Orbit& orbit, const float scale, const glm::vec3 center) {
+Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
     int number_of_sides = 100;
 
     Mesh model = Mesh();

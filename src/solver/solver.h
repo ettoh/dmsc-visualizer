@@ -3,7 +3,7 @@
 
 #include "scan_cover.h"
 #include "vdmsc/instance.h"
-#include "vdmsc/orbit.h"
+#include "vdmsc/satellite.h"
 #include "vdmsc/timetable.h"
 #include <atomic>
 #include <chrono>
@@ -68,7 +68,7 @@ class Solver {
 
     const Instance instance;
     const float step_size = 1.0f;                                          // [sec]
-    std::map<const Orbit*, Orientation> satellite_orientation; // Last known orientation for each satellite
+    std::map<const Satellite*, Orientation> satellite_orientation; // Last known orientation for each satellite
                                                                            // and the time when it changed.
     Callback callback = nullptr;                                           // function pointer
 

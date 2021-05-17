@@ -111,7 +111,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     // solution
     ScanCover solution = ScanCover();
     int current_scan = 0;
-    Timetable<Orbit, Orientation> satellite_orientations = Timetable<Orbit, Orientation>();
+    Timetable<Satellite, Orientation> satellite_orientations = Timetable<Satellite, Orientation>();
 
   private slots:
     void drawLoop();

@@ -1,7 +1,7 @@
 #include "dialog_instance.h"
 #include "dialog_add_edges.h"
 #include "ui_dialog_instance.h"
-#include "vdmsc/orbit.h"
+#include "vdmsc/satellite.h"
 #include <QCheckBox>
 #include <QHeaderView>
 #include <QKeyEvent>
@@ -10,7 +10,9 @@
 
 namespace dmsc {
 
-DialogInstance::DialogInstance(QWidget* parent) : QDialog(parent), ui(new Ui::Dialog()) {
+DialogInstance::DialogInstance(QWidget* parent)
+    : QDialog(parent)
+    , ui(new Ui::Dialog()) {
     ui->setupUi(this);
 
     // connect button signals
@@ -52,18 +54,15 @@ void DialogInstance::accept() {
 
     // 1. orbits
     for (int i = 0; i < ui->table_orbits->rowCount(); i++) {
-        StateVector s;
-        s.hp = ((TableItem*)ui->table_orbits->item(i, 0))->data;
-        s.eccentricity = ((TableItem*)ui->table_orbits->item(i, 1))->data;
-        s.true_anomaly = ((TableItem*)ui->table_orbits->item(i, 2))->data;
-        s.inclination = ((TableItem*)ui->table_orbits->item(i, 3))->data;
-        s.raan = ((TableItem*)ui->table_orbits->item(i, 4))->data;
-        s.perigee = ((TableItem*)ui->table_orbits->item(i, 5))->data;
-        s.rotation_speed = ((TableItem*)ui->table_orbits->item(i, 6))->data;
-        float a = (s.hp + radius_central_mass) /
-                  (1 - s.eccentricity); // calc semimajor axis depending on perigee height and eccentricity
-        instance.orbits.emplace_back(false, gravitational_parameter, a, s.true_anomaly, s.inclination, s.raan, s.perigee,
-                                     s.rotation_speed, s.eccentricity);
+        StateVector sv;
+        sv.height_perigee = ((TableItem*)ui->table_orbits->item(i, 0))->data;
+        sv.eccentricity = ((TableItem*)ui->table_orbits->item(i, 1))->data;
+        float anomaly = ((TableItem*)ui->table_orbits->item(i, 2))->data;
+        sv.inclination = ((TableItem*)ui->table_orbits->item(i, 3))->data;
+        sv.raan = ((TableItem*)ui->table_orbits->item(i, 4))->data;
+        sv.argument_periapsis = ((TableItem*)ui->table_orbits->item(i, 5))->data;
+        sv.rotation_speed = ((TableItem*)ui->table_orbits->item(i, 6))->data;
+        instance.orbits.push_back(Satellite(sv, anomaly, gravitational_parameter, radius_central_mass));
     }
 
     // 2. edges
@@ -79,30 +78,30 @@ void DialogInstance::accept() {
 
 void DialogInstance::addSingleOrbit() {
     prepareRandomGenerator();
-    StateVector s;
-    s.hp = getValue(ui->nbr_height_min, ui->nbr_height_max, RANDOM, 0.0f, ui->chk_height->isChecked());
-    s.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, RANDOM, 0.0f, ui->chk_ecc->isChecked());
-    s.true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, RANDOM, 0.0f, ui->chk_pos->isChecked());
-    s.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, RANDOM, 0.0f, ui->chk_raan->isChecked());
-    s.perigee = getValue(ui->nbr_peri_min, ui->nbr_peri_max, RANDOM, 0.0f, ui->chk_peri->isChecked());
-    s.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, RANDOM, 0.0f, ui->chk_incl->isChecked());
-    s.rotation_speed = ui->nbr_rotation_speed->value();
-    addOrbit(s);
+    StateVector sv;
+    sv.height_perigee = getValue(ui->nbr_height_min, ui->nbr_height_max, RANDOM, 0.0f, ui->chk_height->isChecked());
+    sv.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, RANDOM, 0.0f, ui->chk_ecc->isChecked());
+    float initial_true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, RANDOM, 0.0f, ui->chk_pos->isChecked());
+    sv.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, RANDOM, 0.0f, ui->chk_raan->isChecked());
+    sv.argument_periapsis = getValue(ui->nbr_peri_min, ui->nbr_peri_max, RANDOM, 0.0f, ui->chk_peri->isChecked());
+    sv.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, RANDOM, 0.0f, ui->chk_incl->isChecked());
+    sv.rotation_speed = ui->nbr_rotation_speed->value();
+    addOrbit(sv, initial_true_anomaly);
 }
 
 void DialogInstance::addLinearOrbits() {
     int n = ui->nbr_orbits->value();
     for (int i = 0; i < n; i++) {
-        StateVector s;
+        StateVector sv;
         float x = (float)i / (n - 1);
-        s.hp = getValue(ui->nbr_height_min, ui->nbr_height_max, LINEAR, x, ui->chk_height->isChecked());
-        s.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, LINEAR, x, ui->chk_ecc->isChecked());
-        s.true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, LINEAR, x, ui->chk_pos->isChecked());
-        s.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, LINEAR, x, ui->chk_raan->isChecked());
-        s.perigee = getValue(ui->nbr_peri_min, ui->nbr_peri_max, LINEAR, x, ui->chk_peri->isChecked());
-        s.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, LINEAR, x, ui->chk_incl->isChecked());
-        s.rotation_speed = ui->nbr_rotation_speed->value();
-        addOrbit(s);
+        sv.height_perigee = getValue(ui->nbr_height_min, ui->nbr_height_max, LINEAR, x, ui->chk_height->isChecked());
+        sv.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, LINEAR, x, ui->chk_ecc->isChecked());
+        float initial_true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, LINEAR, x, ui->chk_pos->isChecked());
+        sv.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, LINEAR, x, ui->chk_raan->isChecked());
+        sv.argument_periapsis = getValue(ui->nbr_peri_min, ui->nbr_peri_max, LINEAR, x, ui->chk_peri->isChecked());
+        sv.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, LINEAR, x, ui->chk_incl->isChecked());
+        sv.rotation_speed = ui->nbr_rotation_speed->value();
+        addOrbit(sv, initial_true_anomaly);
     }
 }
 
@@ -110,16 +109,16 @@ void DialogInstance::addRandomOrbits() {
     prepareRandomGenerator();
     // generate orbits
     for (int i = 0; i < ui->nbr_orbits->value(); i++) {
-        StateVector s;
+        StateVector sv;
         float x = 0.0f;
-        s.hp = getValue(ui->nbr_height_min, ui->nbr_height_max, RANDOM, x, ui->chk_height->isChecked());
-        s.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, RANDOM, x, ui->chk_ecc->isChecked());
-        s.true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, RANDOM, x, ui->chk_pos->isChecked());
-        s.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, RANDOM, x, ui->chk_raan->isChecked());
-        s.perigee = getValue(ui->nbr_peri_min, ui->nbr_peri_max, RANDOM, x, ui->chk_peri->isChecked());
-        s.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, RANDOM, x, ui->chk_incl->isChecked());
-        s.rotation_speed = ui->nbr_rotation_speed->value();
-        addOrbit(s);
+        sv.height_perigee = getValue(ui->nbr_height_min, ui->nbr_height_max, RANDOM, x, ui->chk_height->isChecked());
+        sv.eccentricity = getValue(ui->nbr_ecc_min, ui->nbr_ecc_max, RANDOM, x, ui->chk_ecc->isChecked());
+        float initial_true_anomaly = getValue(ui->nbr_pos_min, ui->nbr_pos_max, RANDOM, x, ui->chk_pos->isChecked());
+        sv.raan = getValue(ui->nbr_raan_min, ui->nbr_raan_max, RANDOM, x, ui->chk_raan->isChecked());
+        sv.argument_periapsis = getValue(ui->nbr_peri_min, ui->nbr_peri_max, RANDOM, x, ui->chk_peri->isChecked());
+        sv.inclination = getValue(ui->nbr_incl_min, ui->nbr_incl_max, RANDOM, x, ui->chk_incl->isChecked());
+        sv.rotation_speed = ui->nbr_rotation_speed->value();
+        addOrbit(sv, initial_true_anomaly);
     }
 }
 
@@ -181,16 +180,16 @@ void DialogInstance::addEdgeDialog() {
     }
 }
 
-void DialogInstance::addOrbit(const StateVector& s) {
+void DialogInstance::addOrbit(const StateVector& sv, const float initial_true_anomaly) {
     int row_index = ui->table_orbits->rowCount();
     ui->table_orbits->insertRow(row_index);
-    ui->table_orbits->setItem(row_index, 0, new TableItem(QString::number(s.hp), s.hp));
-    ui->table_orbits->setItem(row_index, 1, new TableItem(QString::number(s.eccentricity), s.eccentricity));
-    ui->table_orbits->setItem(row_index, 2, new TableItem(QString::number(s.true_anomaly), s.true_anomaly));
-    ui->table_orbits->setItem(row_index, 3, new TableItem(QString::number(s.inclination), s.inclination));
-    ui->table_orbits->setItem(row_index, 4, new TableItem(QString::number(s.raan), s.raan));
-    ui->table_orbits->setItem(row_index, 5, new TableItem(QString::number(s.perigee), s.perigee));
-    ui->table_orbits->setItem(row_index, 6, new TableItem(QString::number(s.rotation_speed), s.rotation_speed));
+    ui->table_orbits->setItem(row_index, 0, new TableItem(QString::number(sv.height_perigee), sv.height_perigee));
+    ui->table_orbits->setItem(row_index, 1, new TableItem(QString::number(sv.eccentricity), sv.eccentricity));
+    ui->table_orbits->setItem(row_index, 2, new TableItem(QString::number(initial_true_anomaly), initial_true_anomaly));
+    ui->table_orbits->setItem(row_index, 3, new TableItem(QString::number(sv.inclination), sv.inclination));
+    ui->table_orbits->setItem(row_index, 4, new TableItem(QString::number(sv.raan), sv.raan));
+    ui->table_orbits->setItem(row_index, 5, new TableItem(QString::number(sv.argument_periapsis), sv.argument_periapsis));
+    ui->table_orbits->setItem(row_index, 6, new TableItem(QString::number(sv.rotation_speed), sv.rotation_speed));
 }
 
 void DialogInstance::addEdge(const int orbit1, const int orbit2) {

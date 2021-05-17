@@ -1,7 +1,7 @@
 #ifndef TIMETABLE_H
 #define TIMETABLE_H
 
-#include "orbit.h"
+#include "satellite.h"
 #include <map>
 #include <set>
 

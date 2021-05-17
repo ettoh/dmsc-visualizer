@@ -23,15 +23,6 @@ class DialogInstance : public QDialog {
     Ui::Dialog* ui;
     std::mt19937 generator = std::mt19937(0);
     enum MODE { RANDOM, LINEAR };
-    struct StateVector {
-        float hp = 0.0f;             // [km]
-        float true_anomaly = 0.0f;   // [deg]
-        float eccentricity = 0.0f;   // [deg]
-        float inclination = 0.0f;    // [deg]
-        float perigee = 0.0f;        // [deg]
-        float raan = 0.0f;           // [deg]
-        float rotation_speed = 0.0f; // [rad/sec]
-    };
 
   private:
     /**
@@ -51,7 +42,7 @@ class DialogInstance : public QDialog {
     /**
      * @brief Add an orbit to the table.
      */
-    void addOrbit(const StateVector& s);
+    void addOrbit(const StateVector& sv, const float initial_true_anomaly);
 
   private slots:
     void addSingleOrbit();
@@ -86,7 +77,9 @@ class DialogInstance : public QDialog {
 // The additional data will be used for creating the orbit later (=> no string conversion).
 class TableItem : public QTableWidgetItem {
   public:
-    TableItem(const QString& text, const float data) : QTableWidgetItem(text), data(data){};
+    TableItem(const QString& text, const float data)
+        : QTableWidgetItem(text)
+        , data(data){};
     float data = 0.0f;
 };
 

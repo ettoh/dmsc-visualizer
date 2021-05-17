@@ -1,7 +1,8 @@
-Language: Cpp
 BasedOnStyle: LLVM
+BreakConstructorInitializers: BeforeComma
+ColumnLimit: 130
 IndentWidth: 4
+Language: Cpp
+PointerAlignment: Left
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 130
-PointerAlignment: Left

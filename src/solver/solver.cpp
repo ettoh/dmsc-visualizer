@@ -37,8 +37,8 @@ float Solver::nextCommunication(const Edge& edge, const float time_0) {
 
     // satellites can't align => search for a time where they can
     // max time to align ==> time for a 180� turn
-    float t_max = std::max(static_cast<float>(M_PI) / edge.getV1().getMeanRotationSpeed(),
-                           static_cast<float>(M_PI) / edge.getV2().getMeanRotationSpeed());
+    float t_max = std::max(static_cast<float>(M_PI) / edge.getV1().getRotationSpeed(),
+                           static_cast<float>(M_PI) / edge.getV2().getRotationSpeed());
     t_max += edge.getPeriod();
 
     for (float t = t_visible; t <= time_0 + t_max; t += step_size) {

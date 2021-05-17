@@ -4,7 +4,7 @@
 #define _USE_MATH_DEFINES
 
 #include "vdmsc/glm_include.h"
-#include "vdmsc/orbit.h"
+#include "vdmsc/satellite.h"
 #include <QOpenGLFunctions_3_3_Core>
 #include <math.h>
 #include <vector>
@@ -134,7 +134,7 @@ Mesh createSatellite();
 /**
  * @brief Create a list of vertices and colors that forms an orbit in gl.
  */
-Mesh createOrbit(const Orbit& orbit, const float scale, const glm::vec3 center);
+Mesh createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center);
 
 } // namespace OpenGLPrimitives
 
