@@ -13,15 +13,15 @@ struct EdgeOrientation {
 
 struct Edge {
   private:
-    const dmsc::Satellite* v1;
-    const dmsc::Satellite* v2;
+    const Satellite* v1;
+    const Satellite* v2;
     float period;              // [sec] time until satellite constellations repeat
     float max_angle;           // [rad] max angle for satellites to see each other
     float radius_central_mass; // [km]
 
   public:
     // only defined for circular Orbits!
-    Edge(const dmsc::Satellite* v1, const dmsc::Satellite* v2, const float radius_central_mass)
+    Edge(const Satellite* v1, const Satellite* v2, const float radius_central_mass)
         : v1{v1}, v2{v2}, radius_central_mass(radius_central_mass) {
 
         period = v1->getPeriod();
@@ -104,8 +104,8 @@ struct Edge {
 
     float getPeriod() const { return period; }
     float getMaxAngle() const { return max_angle; }
-    const dmsc::Satellite& getV1() const { return *v1; }
-    const dmsc::Satellite& getV2() const { return *v2; }
+    const Satellite& getV1() const { return *v1; }
+    const Satellite& getV2() const { return *v2; }
     float getRadiusCentralMass() const { return radius_central_mass; }
 };
 
