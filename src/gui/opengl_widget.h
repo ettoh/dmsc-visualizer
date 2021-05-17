@@ -9,9 +9,11 @@
 #include "vdmsc/instance.h"
 #include "vdmsc/timetable.h"
 #include <QOpenGLWidget>
-#include <qopenglfunctions_3_3_core.h>
 #include <chrono>
 #include <math.h>
+#include <qopenglfunctions_3_3_core.h>
+
+namespace dmsc {
 
 using SysTime_t = std::chrono::time_point<std::chrono::system_clock>;
 constexpr auto PI2 = 2 * M_PI; // 2pi
@@ -31,7 +33,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
      * scene with vertices and display it until the next call.
      */
-    void visualizeInstance(const ProblemInstance& instance);
+    void visualizeInstance(const Instance& instance);
 
     /**
      * @brief Visualize a given solution for the current displayed instance.
@@ -98,7 +100,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
                                  glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
     // scene
     int state = EMPTY;
-    ProblemInstance problem_instance = ProblemInstance();
+    Instance problem_instance = Instance();
     std::vector<OpenGLPrimitives::Subscene> scene;
     SysTime_t last_frame_time = std::chrono::system_clock::now();
     float time = .0f;
@@ -123,5 +125,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     void mousePressEvent(QMouseEvent* event);
     void mouseReleaseEvent(QMouseEvent* event);
 };
+
+} // namespace dmsc
 
 #endif

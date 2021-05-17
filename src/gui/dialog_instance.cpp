@@ -8,6 +8,8 @@
 #include <ctime>
 #include <set>
 
+namespace dmsc {
+
 DialogInstance::DialogInstance(QWidget* parent) : QDialog(parent), ui(new Ui::Dialog()) {
     ui->setupUi(this);
 
@@ -43,7 +45,7 @@ DialogInstance::DialogInstance(QWidget* parent) : QDialog(parent), ui(new Ui::Di
 
 void DialogInstance::accept() {
     // generate instance object from data in the tables
-    instance = ProblemInstance();
+    instance = Instance();
     float radius_central_mass = ui->nbr_radius_cm->value();
     float gravitational_parameter = ui->nbr_gravitation->value();
     int nbr_edges = ui->table_edges->rowCount();
@@ -288,3 +290,5 @@ void DialogInstance::keyPressEvent(QKeyEvent* evt) {
         return;
     QDialog::keyPressEvent(evt);
 }
+
+} // namespace dmsc

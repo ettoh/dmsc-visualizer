@@ -10,6 +10,8 @@
 #include <chrono>
 #include <fstream>
 
+namespace dmsc {
+
 MainWindow::MainWindow() : ui(new Ui::MainWindow) {
     ui->setupUi(this);
     Solver::solver_abort = false;
@@ -41,8 +43,7 @@ MainWindow::MainWindow() : ui(new Ui::MainWindow) {
 }
 
 void MainWindow::saveInstance() {
-    QString file = QFileDialog::getSaveFileName(this, "Save instance", QDir::currentPath(),
-                                                tr("Instance (*.csv *.instance*)"));
+    QString file = QFileDialog::getSaveFileName(this, "Save instance", QDir::currentPath(), tr("Instance (*.csv *.instance*)"));
     if (file.size() == 0) {
         return;
     }
@@ -55,13 +56,12 @@ void MainWindow::saveInstance() {
 }
 
 void MainWindow::loadInstance() {
-    QString file = QFileDialog::getOpenFileName(this, "Load instance", QDir::currentPath(),
-                                                tr("Instance (*.csv *.instance*)"));
+    QString file = QFileDialog::getOpenFileName(this, "Load instance", QDir::currentPath(), tr("Instance (*.csv *.instance*)"));
     if (file.size() == 0) {
         return;
     }
 
-    problem_instance = ProblemInstance(file.toStdString());
+    problem_instance = Instance(file.toStdString());
     opengl_widget->visualizeInstance(problem_instance);
 }
 
@@ -107,8 +107,7 @@ void MainWindow::solve() {
         }
         case ID_SIM_ANNEALING: {
             try {
-                solver = new SimulatedAnnealing(problem_instance,
-                                                std::bind(&MainWindow::solverCallback, this, _1));
+                solver = new SimulatedAnnealing(problem_instance, std::bind(&MainWindow::solverCallback, this, _1));
             } catch (const std::exception&) {
                 return ScanCover();
             }
@@ -177,3 +176,5 @@ void MainWindow::decrSimulationSpeed() {
 void MainWindow::setSimulationSpeed(const double speed) { opengl_widget->setTimeBoost((float)speed); }
 
 void MainWindow::restart_simulation() { opengl_widget->setTime(0.0f); }
+
+} // namespace dmsc

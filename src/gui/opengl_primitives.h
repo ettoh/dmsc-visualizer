@@ -9,6 +9,8 @@
 #include <math.h>
 #include <vector>
 
+namespace dmsc {
+
 namespace OpenGLPrimitives {
 /**
  * @brief Store all the data to describe a vertex. Must not contain additional data.
@@ -135,5 +137,7 @@ Mesh createSatellite();
 Mesh createOrbit(const Orbit& orbit, const float scale, const glm::vec3 center);
 
 } // namespace OpenGLPrimitives
+
+} // namespace dmsc
 
 #endif

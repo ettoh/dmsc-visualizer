@@ -10,6 +10,8 @@
 #include <QTimer>
 #include <future>
 
+namespace dmsc {
+
 namespace Ui {
 class MainWindow;
 }
@@ -23,7 +25,7 @@ class MainWindow : public QMainWindow {
   private:
     Ui::MainWindow* ui;
     OpenGLWidget* opengl_widget;
-    ProblemInstance problem_instance = ProblemInstance();
+    Instance problem_instance = Instance();
     // solving
     float progress = 0.0f; // percentage [0, 1]
     std::future<ScanCover> solution;
@@ -44,5 +46,7 @@ class MainWindow : public QMainWindow {
   private:
     enum SolverID { ID_GREEDY_NEXT, ID_ILS, ID_SIM_ANNEALING, ID_GENETIC };
 };
+
+} // namespace dmsc
 
 #endif

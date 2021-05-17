@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <vector>
 
+namespace dmsc {
+
 struct Scan {
     unsigned int edge_index = 0;
     float time = 0.0f;
@@ -53,5 +55,7 @@ struct ScanCover {
     float computation_time = 0.0f;
     float lower_bound = 0.0f;
 };
+
+} // namespace dmsc
 
 #endif

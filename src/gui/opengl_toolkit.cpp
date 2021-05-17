@@ -2,6 +2,8 @@
 #include <fstream>
 #include <iostream>
 
+namespace dmsc {
+
 using std::string;
 
 string OpenGLToolkit::readShader(const string& file_name) {
@@ -52,3 +54,5 @@ GLuint OpenGLToolkit::createProgram(const GLuint vertex_shader, const GLuint fra
 
     return program;
 }
+
+} // namespace dmsc

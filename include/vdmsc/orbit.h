@@ -8,6 +8,8 @@
 #include <iostream>
 #include <math.h>
 
+namespace dmsc {
+
 struct Orbit {
   private:
     float gravitational_parameter;   // [km^3 / s^2]
@@ -123,5 +125,7 @@ struct Orientation {
     Orientation() = default;
     Orientation(const float start) { this->start = start; }
 };
+
+} // namespace dmsc
 
 #endif

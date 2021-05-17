@@ -4,6 +4,8 @@
 #include <ctime>
 #include <random>
 
+namespace dmsc {
+
 ScanCover ILS::solve() {
     // start time for computation time
     auto t_start = std::chrono::system_clock::now();
@@ -89,3 +91,5 @@ EdgeOrder ILS::localSearch(EdgeOrder init_order) {
         return ls_best_order;
     }
 }
+
+} // namespace dmsc

@@ -4,14 +4,18 @@
 #include "solver.h"
 #include <vector>
 
+namespace dmsc {
+
 class ILS : public Solver {
   public:
-    ILS(const ProblemInstance& instance) : Solver(instance) {}
-    ILS(const ProblemInstance& instance, Callback callback) : Solver(instance, callback) {}
+    ILS(const Instance& instance) : Solver(instance) {}
+    ILS(const Instance& instance, Callback callback) : Solver(instance, callback) {}
     ScanCover solve();
 
   private:
     EdgeOrder localSearch(EdgeOrder init_order);
 };
+
+} // namespace dmsc
 
 #endif // !ITERATED_LOCAL_SEARCH_H

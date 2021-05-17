@@ -1,8 +1,10 @@
 #include "greedy_next.h"
 
+namespace dmsc {
+
 ScanCover GreedyNext::solve() {
     // start time for computation time
-    auto t_start = std::chrono::system_clock::now();    
+    auto t_start = std::chrono::system_clock::now();
 
     // init variables
     ScanCover solution = ScanCover();
@@ -22,8 +24,8 @@ ScanCover GreedyNext::solve() {
     // choose best edge in each iteration.
     while (remaining_edges.size() > 0) {
         // allowed to continue?
-        if(solver_abort == true)
-            return ScanCover();        
+        if (solver_abort == true)
+            return ScanCover();
 
         int best_edge_pos = 0;   // position in remaining edges
         float t_next = INFINITY; // absolute time
@@ -71,3 +73,5 @@ ScanCover GreedyNext::solve() {
 
     return solution;
 }
+
+} // namespace dmsc

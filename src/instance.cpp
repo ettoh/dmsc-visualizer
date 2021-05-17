@@ -1,13 +1,15 @@
 #include "vdmsc/instance.h"
 #include <algorithm>
+#include <ctime>
 #include <fstream>
 #include <map>
+#include <random>
 #include <set>
 #include <sstream>
-#include <random>
-#include <ctime>
 
-ProblemInstance::ProblemInstance(const ProblemInstance& source) {
+namespace dmsc {
+
+Instance::Instance(const Instance& source) {
     radius_central_mass = source.radius_central_mass;
     gravitational_parameter = source.gravitational_parameter;
 
@@ -26,7 +28,7 @@ ProblemInstance::ProblemInstance(const ProblemInstance& source) {
     }
 }
 
-ProblemInstance::ProblemInstance(const std::string& file) {
+Instance::Instance(const std::string& file) {
     // load instance from file
     std::string line_cache = "";
     int mode = READ_INIT;
@@ -70,8 +72,8 @@ ProblemInstance::ProblemInstance(const std::string& file) {
                 float inclination = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
                 float rotation_speed = std::stof(value_cache);
-                orbits.emplace_back(true, gravitational_parameter, a, anomaly, inclination, raan, perigee,
-                                    rotation_speed, eccentricity);
+                orbits.emplace_back(true, gravitational_parameter, a, anomaly, inclination, raan, perigee, rotation_speed,
+                                    eccentricity);
                 break;
             }
             case READ_EDGE: {
@@ -93,7 +95,7 @@ ProblemInstance::ProblemInstance(const std::string& file) {
     is.close();
 }
 
-ProblemInstance& ProblemInstance::operator=(const ProblemInstance& source) {
+Instance& Instance::operator=(const Instance& source) {
     // check for self-assignment
     if (&source == this)
         return *this;
@@ -121,7 +123,7 @@ ProblemInstance& ProblemInstance::operator=(const ProblemInstance& source) {
     return *this;
 }
 
-void ProblemInstance::removeInvalidEdges() {
+void Instance::removeInvalidEdges() {
     for (int i = (int)edges.size() - 1; i >= 0; i--) {
         const Edge& e = edges[i];
         bool get_visible = false;
@@ -140,7 +142,7 @@ void ProblemInstance::removeInvalidEdges() {
     edges.shrink_to_fit();
 }
 
-LineGraph ProblemInstance::lineGraph() const {
+LineGraph Instance::lineGraph() const {
     LineGraph g;
 
     // init graph
@@ -175,7 +177,7 @@ LineGraph ProblemInstance::lineGraph() const {
     return g;
 }
 
-bool ProblemInstance::save(const std::string& file) const {
+bool Instance::save(const std::string& file) const {
     std::ofstream fs(file);
     if (fs.fail()) {
         return false;
@@ -221,3 +223,5 @@ bool ProblemInstance::save(const std::string& file) const {
     fs.close();
     return true;
 }
+
+} // namespace dmsc

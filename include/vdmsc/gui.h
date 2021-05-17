@@ -1,3 +1,3 @@
-namespace VDMSC{
+namespace dmsc{
     int newWindow();
 }

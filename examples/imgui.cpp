@@ -2,5 +2,5 @@
 #include <iostream>
 
 int main() {
-    return VDMSC::newWindow();
+    return dmsc::newWindow();
 }

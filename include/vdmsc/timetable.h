@@ -5,6 +5,8 @@
 #include <map>
 #include <set>
 
+namespace dmsc {
+
 template <typename Key, typename Value> struct Timetable {
   public:
     Timetable() = default;
@@ -70,5 +72,7 @@ template <typename Key, typename Value> struct Timetable {
   private:
     std::map<const Key*, std::set<Value>> timetable;
 };
+
+} // namespace dmsc
 
 #endif // !TIMETABLE_H

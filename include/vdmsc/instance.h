@@ -7,13 +7,15 @@
 #include <string>
 #include <vector>
 
+namespace dmsc {
+
 using AdjacentList = std::vector<int>;
 
 struct LineGraph {
     std::vector<AdjacentList> edges;
 };
 
-struct ProblemInstance {
+struct Instance {
   private:
     float gravitational_parameter = 398599;                    // earth [km^3 / s^2]
     float radius_central_mass = 6378;                          // equatorial radius (earth) [km]
@@ -23,16 +25,16 @@ struct ProblemInstance {
     std::vector<Orbit> orbits;
     std::vector<Edge> edges;
 
-    ProblemInstance() = default;
+    Instance() = default;
     /**
      * @param gravitational_parameter [km^3 / s^2]
      * @param radius_central_mass [km]
      */
-    ProblemInstance(const float gravitational_parameter, const float radius_central_mass)
+    Instance(const float gravitational_parameter, const float radius_central_mass)
         : gravitational_parameter(gravitational_parameter), radius_central_mass(radius_central_mass) {}
-    ProblemInstance(const ProblemInstance& source);
-    ProblemInstance(const std::string& file);
-    ProblemInstance& operator=(const ProblemInstance& source);
+    Instance(const Instance& source);
+    Instance(const std::string& file);
+    Instance& operator=(const Instance& source);
 
     void addOrbit(const Orbit& orbit) { orbits.push_back(Orbit(orbit)); }
     float getRadiusCentralMass() const { return radius_central_mass; }
@@ -40,5 +42,7 @@ struct ProblemInstance {
     LineGraph lineGraph() const;
     bool save(const std::string& file) const;
 };
+
+} // namespace dmsc
 
 #endif

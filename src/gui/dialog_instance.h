@@ -7,15 +7,17 @@
 #include <QTableWidgetItem>
 #include <random>
 
+namespace dmsc {
+
 namespace Ui {
-    class Dialog;
+class Dialog;
 }
 
 class DialogInstance : public QDialog {
     Q_OBJECT
   public:
     DialogInstance(QWidget* parent = nullptr);
-    ProblemInstance instance = ProblemInstance();
+    Instance instance = Instance();
 
   private:
     Ui::Dialog* ui;
@@ -43,8 +45,8 @@ class DialogInstance : public QDialog {
      * used.
      * @return
      */
-    float getValue(const QDoubleSpinBox* min_obj, const QDoubleSpinBox* max_obj, const int mode,
-                   const float x, const bool is_ranged);
+    float getValue(const QDoubleSpinBox* min_obj, const QDoubleSpinBox* max_obj, const int mode, const float x,
+                   const bool is_ranged);
 
     /**
      * @brief Add an orbit to the table.
@@ -87,5 +89,7 @@ class TableItem : public QTableWidgetItem {
     TableItem(const QString& text, const float data) : QTableWidgetItem(text), data(data){};
     float data = 0.0f;
 };
+
+} // namespace dmsc
 
 #endif // !DIALOG_INSTANCE_H

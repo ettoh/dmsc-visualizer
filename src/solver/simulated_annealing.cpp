@@ -3,6 +3,8 @@
 #include <ctime>
 #include <random>
 
+namespace dmsc {
+
 ScanCover SimulatedAnnealing::solve() {
     auto t_start = std::chrono::system_clock::now();
     satellite_orientation.clear();
@@ -67,9 +69,8 @@ ScanCover SimulatedAnnealing::solve() {
 
         // choose random neighbour
         EdgeOrder neighbour = current_order;
-        int pos_to_swap = distr(generator); // pick an edge
-        AdjacentList adj_list =
-            line_graph.edges[neighbour[pos_to_swap]]; // which edges are adjacent to the picked one?
+        int pos_to_swap = distr(generator);                                     // pick an edge
+        AdjacentList adj_list = line_graph.edges[neighbour[pos_to_swap]]; // which edges are adjacent to the picked one?
         if (adj_list.size() == 0)
             continue;
 
@@ -91,8 +92,7 @@ ScanCover SimulatedAnnealing::solve() {
             current_solution = new_solution;
             current_order = neighbour;
         } else {
-            float prob =
-                std::exp(-(new_solution.getScanTime() - current_solution.getScanTime()) / temperature);
+            float prob = std::exp(-(new_solution.getScanTime() - current_solution.getScanTime()) / temperature);
             if (prob_distr(generator) <= prob) {
                 current_solution = new_solution;
                 current_order = neighbour;
@@ -115,3 +115,5 @@ ScanCover SimulatedAnnealing::solve() {
     best_solution.setComputationTime(diff.count());
     return best_solution;
 }
+
+} // namespace dmsc

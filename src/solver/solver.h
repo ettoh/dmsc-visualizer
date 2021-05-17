@@ -10,6 +10,8 @@
 #include <functional>
 #include <map>
 
+namespace dmsc {
+
 using Callback = std::function<void(float)>;
 using EdgeOrder = std::vector<int>;
 
@@ -30,9 +32,9 @@ struct TimeSlot {
 
 class Solver {
   public:
-    Solver(const ProblemInstance& instance) : instance(ProblemInstance(instance)) { createCache(); };
+    Solver(const Instance& instance) : instance(Instance(instance)) { createCache(); };
 
-    Solver(const ProblemInstance& instance, Callback callback) : Solver(instance) { this->callback = callback; };
+    Solver(const Instance& instance, Callback callback) : Solver(instance) { this->callback = callback; };
 
     virtual ScanCover solve() = 0;
     float lowerBound();
@@ -64,11 +66,11 @@ class Solver {
 
     ScanCover evaluateEdgeOrder(const EdgeOrder& edge_order);
 
-    const ProblemInstance instance;
-    const float step_size = 1.0f;                              // [sec]
+    const Instance instance;
+    const float step_size = 1.0f;                                          // [sec]
     std::map<const Orbit*, Orientation> satellite_orientation; // Last known orientation for each satellite
-                                                               // and the time when it changed.
-    Callback callback = nullptr;                               // function pointer
+                                                                           // and the time when it changed.
+    Callback callback = nullptr;                                           // function pointer
 
   private:
     /** Calculate the time (beginning at time t0) when an edge is no longer interrupted by the central mass.
@@ -92,5 +94,7 @@ class Solver {
 
     [[deprecated]] bool sphereIntersection(const Edge& edge, const float time);
 };
+
+} // namespace dmsc
 
 #endif

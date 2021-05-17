@@ -3,8 +3,10 @@
 
 #include <QDialog>
 
+namespace dmsc {
+
 namespace Ui {
-    class DialogEdges;
+class DialogEdges;
 }
 
 class DialogAddEdges : public QDialog {
@@ -21,5 +23,7 @@ class DialogAddEdges : public QDialog {
   private:
     Ui::DialogEdges* ui;
 };
+
+} // namespace dmsc
 
 #endif

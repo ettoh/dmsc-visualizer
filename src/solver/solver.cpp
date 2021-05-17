@@ -6,6 +6,8 @@
 #include <fstream>
 #include <random>
 
+namespace dmsc {
+
 std::atomic<bool> Solver::solver_abort = false;
 
 float Solver::lowerBound() {
@@ -199,3 +201,5 @@ EdgeOrder Solver::toEdgeOrder(const ScanCover& scan_cover) {
     }
     return edge_order;
 }
+
+} // namespace dmsc

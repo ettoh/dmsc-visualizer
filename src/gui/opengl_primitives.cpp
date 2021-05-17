@@ -1,4 +1,7 @@
 #include "opengl_primitives.h"
+
+namespace dmsc {
+
 using OpenGLPrimitives::Mesh;
 
 Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const int accuracy) {
@@ -165,3 +168,5 @@ Mesh OpenGLPrimitives::createOrbit(const Orbit& orbit, const float scale, const 
 
     return model;
 }
+
+} // namespace dmsc

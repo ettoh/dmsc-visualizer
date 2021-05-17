@@ -7,6 +7,8 @@
 #include <QWheelEvent>
 #include <iostream>
 
+namespace dmsc {
+
 using OpenGLPrimitives::Mesh;
 using OpenGLPrimitives::Object;
 using OpenGLPrimitives::Subscene;
@@ -109,12 +111,12 @@ void OpenGLWidget::paintGL() {
     }
 }
 
-void OpenGLWidget::visualizeInstance(const ProblemInstance& instance) {
+void OpenGLWidget::visualizeInstance(const Instance& instance) {
     makeCurrent();
     deleteInstance();
     state = INSTANCE;
     // copy so visualization does not depend on original instance
-    problem_instance = ProblemInstance(instance);
+    problem_instance = Instance(instance);
     last_frame_time = std::chrono::system_clock::now();
     time = 0;
 
@@ -408,12 +410,12 @@ void OpenGLWidget::recalculateEdges() {
         float dt = time - last_orientation.start;
 
         glm::vec3 direction_vector = last_orientation.direction;
-        direction_vector =
-            glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()), glm::cross(direction_vector, next_orientation.direction));
+        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * orbit.getMeanRotationSpeed()),
+                                       glm::cross(direction_vector, next_orientation.direction));
 
         VertexData origin(position);
         VertexData direction(position + direction_vector * 0.025f);
-        
+
         origin.setColor(1.0f, 1.0f, 1.0f);
         direction.setColor(1.0f, 1.0f, 1.0f);
 
@@ -517,3 +519,5 @@ float OpenGLWidget::changeSpeed(bool up) {
     time_boost *= up ? 2.0f : 0.5f;
     return time_boost;
 }
+
+} // namespace dmsc

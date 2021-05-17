@@ -4,6 +4,8 @@
 #include <QOpenGLFunctions_3_3_Core>
 #include <string>
 
+namespace dmsc {
+
 class OpenGLToolkit : protected QOpenGLFunctions_3_3_Core {
   public:
     OpenGLToolkit() { initializeOpenGLFunctions(); }
@@ -31,5 +33,7 @@ class OpenGLToolkit : protected QOpenGLFunctions_3_3_Core {
      */
     GLuint createProgram(const GLuint vertex_shader, const GLuint fragment_shader);
 };
+
+} // namespace dmsc
 
 #endif

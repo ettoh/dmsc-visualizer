@@ -2,16 +2,15 @@
 #include "ui_dialog_add_edges.h"
 #include <QSpinBox>
 
+namespace dmsc {
+
 DialogAddEdges::DialogAddEdges(QWidget* parent) : QDialog(parent), ui(new Ui::DialogEdges()) {
     ui->setupUi(this);
 
     // if spin box changed -> activate radio-check-box
-    connect(ui->nbr_orbit1, QOverload<int>::of(&QSpinBox::valueChanged),
-            [this]() { ui->radio_custom->setChecked(true); });
-    connect(ui->nbr_orbit2, QOverload<int>::of(&QSpinBox::valueChanged),
-            [this]() { ui->radio_custom->setChecked(true); });
-    connect(ui->nbr_n, QOverload<int>::of(&QSpinBox::valueChanged),
-            [this]() { ui->radio_random->setChecked(true); });
+    connect(ui->nbr_orbit1, QOverload<int>::of(&QSpinBox::valueChanged), [this]() { ui->radio_custom->setChecked(true); });
+    connect(ui->nbr_orbit2, QOverload<int>::of(&QSpinBox::valueChanged), [this]() { ui->radio_custom->setChecked(true); });
+    connect(ui->nbr_n, QOverload<int>::of(&QSpinBox::valueChanged), [this]() { ui->radio_random->setChecked(true); });
 }
 
 int DialogAddEdges::getMode() {
@@ -33,3 +32,5 @@ int DialogAddEdges::getMode() {
 int DialogAddEdges::getCustom1() const { return ui->nbr_orbit1->value(); }
 int DialogAddEdges::getCustom2() const { return ui->nbr_orbit2->value(); }
 int DialogAddEdges::getNumberEdges() const { return ui->nbr_n->value(); }
+
+} // namespace dmsc

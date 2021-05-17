@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
         QSurfaceFormat::setDefaultFormat(format);
 
         QApplication app(argc, argv);
-        MainWindow main_window = MainWindow();
+        dmsc::MainWindow main_window = dmsc::MainWindow();
         main_window.show();
 
         return app.exec();
