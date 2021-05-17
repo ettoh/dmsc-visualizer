@@ -9,7 +9,7 @@
 #include "vdmsc/instance.h"
 #include "vdmsc/timetable.h"
 #include <QOpenGLWidget>
-#include <QOpenglFunctions_3_3_core.h>
+#include <qopenglfunctions_3_3_core.h>
 #include <chrono>
 #include <math.h>
 

@@ -61,3 +61,7 @@ target_include_directories(vdmsc
 )
 
 target_link_libraries(vdmsc Qt5::Widgets glm::glm glfw solver gui)
+
+if(UNIX)
+    target_link_libraries(vdmsc ${CMAKE_DL_LIBS})
+endif()
