@@ -2,7 +2,7 @@
 #define EDGE_H
 
 #include "satellite.h"
-#include "vdmsc/glm_include.h"
+#include "dmsc/glm_include.h"
 
 namespace dmsc {
 

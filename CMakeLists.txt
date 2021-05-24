@@ -28,7 +28,7 @@ find_package(glm REQUIRED)
 # TODO not found -> local path
 find_package(glfw3 REQUIRED)
 
-add_library(vdmsc STATIC)
+add_library(dmsc STATIC)
 add_subdirectory(./src/solver)
 add_subdirectory(./src/gui)
 
@@ -42,15 +42,16 @@ set(imgui_files
     libs/imgui/backends/imgui_impl_opengl3.cpp
 )
 
-target_sources(vdmsc
+target_sources(dmsc
     PRIVATE
         src/gui.cpp
         src/instance.cpp
+        src/timetable.cpp
         src/glad/glad.c
         ${imgui_files}
 )
 
-target_include_directories(vdmsc
+target_include_directories(dmsc
     PRIVATE
         libs/imgui
         libs/imgui/backends
@@ -60,8 +61,8 @@ target_include_directories(vdmsc
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(vdmsc Qt5::Widgets glm::glm glfw solver gui)
+target_link_libraries(dmsc Qt5::Widgets glm::glm glfw solver gui)
 
 if(UNIX)
-    target_link_libraries(vdmsc ${CMAKE_DL_LIBS})
+    target_link_libraries(dmsc ${CMAKE_DL_LIBS})
 endif()

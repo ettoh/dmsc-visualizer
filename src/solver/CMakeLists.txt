@@ -7,4 +7,4 @@ add_library(solver
     iterated_local_search.h iterated_local_search.cpp 
     simulated_annealing.h simulated_annealing.cpp)
 
-target_link_libraries(solver vdmsc) # TODO temporary
+target_link_libraries(solver dmsc) # TODO temporary

@@ -2,9 +2,9 @@
 #define SOLVER_H
 
 #include "scan_cover.h"
-#include "vdmsc/instance.h"
-#include "vdmsc/satellite.h"
-#include "vdmsc/timetable.h"
+#include "dmsc/instance.h"
+#include "dmsc/satellite.h"
+#include "dmsc/timetable.h"
 #include <atomic>
 #include <chrono>
 #include <functional>

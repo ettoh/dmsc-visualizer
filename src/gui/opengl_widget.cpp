@@ -1,6 +1,6 @@
 #include "opengl_widget.h"
 #include "opengl_toolkit.h"
-#include "vdmsc/glm_include.h"
+#include "dmsc/glm_include.h"
 #include <QImage>
 #include <QOpenGLTexture>
 #include <QTimer>

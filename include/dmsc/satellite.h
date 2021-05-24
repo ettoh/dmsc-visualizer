@@ -2,7 +2,7 @@
 #define ORBIT_H
 
 #define _USE_MATH_DEFINES
-#include "vdmsc/glm_include.h"
+#include "dmsc/glm_include.h"
 #include <exception>
 #include <iostream>
 #include <math.h>

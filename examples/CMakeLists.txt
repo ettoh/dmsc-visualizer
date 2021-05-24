@@ -1,10 +1,10 @@
 # Executables
 add_executable(sample_main_window main_window.cpp)
 add_executable(sample_imgui imgui.cpp)
-target_link_libraries(sample_main_window vdmsc)
-target_link_libraries(sample_imgui vdmsc)
+target_link_libraries(sample_main_window dmsc)
+target_link_libraries(sample_imgui dmsc)
 
-# TODO put resources into vdmsc library OR more flexible path to resources ...
+# TODO put resources into dmsc library OR more flexible path to resources ...
 #Copy shader and binary files
 #If only the shader files changed - we need them to be copied even if gui hasn't changed
 add_custom_target(always ALL)

@@ -1,8 +1,8 @@
 #ifndef SCAN_COVER_H
 #define SCAN_COVER_H
 
-#include "vdmsc/edge.h"
-#include "vdmsc/satellite.h"
+#include "dmsc/edge.h"
+#include "dmsc/satellite.h"
 #include <algorithm>
 #include <vector>
 

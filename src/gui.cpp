@@ -1,4 +1,4 @@
-#include "vdmsc/gui.h"
+#include "dmsc/gui.h"
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE
@@ -134,4 +134,4 @@ int newWindow() {
     return 0;
 }
 
-} // namespace VDMSC
+} // namespace dmsc

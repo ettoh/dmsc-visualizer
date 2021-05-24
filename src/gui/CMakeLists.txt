@@ -9,4 +9,4 @@ add_library(gui
     dialog_add_edges.h dialog_add_edges.ui dialog_add_edges.cpp
 )
 
-target_link_libraries(gui Qt5::Widgets glm::glm solver vdmsc) # TODO temporary
+target_link_libraries(gui Qt5::Widgets glm::glm solver dmsc) # TODO temporary

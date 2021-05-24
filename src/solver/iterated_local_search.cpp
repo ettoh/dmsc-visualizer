@@ -1,6 +1,6 @@
 #include "iterated_local_search.h"
 #include "greedy_next.h"
-#include "vdmsc/edge.h"
+#include "dmsc/edge.h"
 #include <ctime>
 #include <random>
 
