@@ -46,7 +46,6 @@ target_sources(dmsc
     PRIVATE
         src/gui.cpp
         src/instance.cpp
-        src/timetable.cpp
         src/glad/glad.c
         ${imgui_files}
 )

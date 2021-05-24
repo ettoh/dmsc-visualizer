@@ -1,6 +1,7 @@
+AlwaysBreakTemplateDeclarations: Yes
 BasedOnStyle: LLVM
 BreakConstructorInitializers: BeforeComma
-ColumnLimit: 130
+ColumnLimit: 120
 IndentWidth: 4
 Language: Cpp
 PointerAlignment: Left
