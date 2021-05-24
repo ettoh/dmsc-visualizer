@@ -7,8 +7,8 @@ namespace dmsc {
 
 class GreedyNext : public Solver {
   public:
-    GreedyNext(const Instance& instance) : Solver(instance) {}
-    GreedyNext(const Instance& instance, Callback callback) : Solver(instance, callback) {}
+    GreedyNext(const PhysicalInstance& instance) : Solver(instance) {}
+    GreedyNext(const PhysicalInstance& instance, Callback callback) : Solver(instance, callback) {}
 
     /**
      * @return A sorted scan cover.

@@ -61,14 +61,14 @@ void MainWindow::loadInstance() {
         return;
     }
 
-    problem_instance = Instance(file.toStdString());
+    problem_instance = PhysicalInstance(file.toStdString());
     opengl_widget->visualizeInstance(problem_instance);
 }
 
 void MainWindow::visualizeInstance() {
     DialogInstance dialog = DialogInstance(this);
     if (dialog.exec() == QDialog::Accepted) {
-        problem_instance = dialog.instance;
+        problem_instance = dialog.pyhsical_instance;
         opengl_widget->visualizeInstance(problem_instance);
     }
 }

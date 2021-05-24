@@ -12,14 +12,14 @@ std::atomic<bool> Solver::solver_abort = false;
 
 float Solver::lowerBound() {
     float lower_bound = 0;
-    for (const Edge& e : instance.edges) {
+    for (const InterSatelliteLink& e : instance.edges) {
         float t = nextVisibility(e, 0.0);
         if (t > lower_bound && t < INFINITY)
             lower_bound = t;
     }
     return lower_bound;
 }
-float Solver::nextCommunication(const Edge& edge, const float time_0) {
+float Solver::nextCommunication(const InterSatelliteLink& edge, const float time_0) {
     // edge is never visible?
     float t_visible = nextVisibility(edge, time_0);
     if (t_visible >= INFINITY) {
@@ -90,12 +90,12 @@ void Solver::createCache() {
     }
 }
 
-float Solver::nextVisibility(const Edge& edge, const float t0) {
+float Solver::nextVisibility(const InterSatelliteLink& edge, const float t0) {
     if (edge_time_slots.size(&edge) == 0) {
         return INFINITY;
     }
 
-    const Edge* p = &edge;
+    const InterSatelliteLink* p = &edge;
     float t = std::fmod(t0, edge.getPeriod());
     float n_periods = edge.getPeriod() * (int)(t0 / edge.getPeriod());
     TimeSlot prev = edge_time_slots.previous(&edge, t);
@@ -114,7 +114,7 @@ float Solver::nextVisibility(const Edge& edge, const float t0) {
     }
 }
 
-float Solver::findNextVisiblity(const Edge& edge, const float t0) const {
+float Solver::findNextVisiblity(const InterSatelliteLink& edge, const float t0) const {
     for (float t = t0; t <= t0 + edge.getPeriod(); t += step_size) {
         if (!edge.isBlocked(t)) {
             return t;
@@ -124,7 +124,7 @@ float Solver::findNextVisiblity(const Edge& edge, const float t0) const {
     return INFINITY;
 }
 
-float Solver::findLastVisible(const Edge& edge, const float t0) const {
+float Solver::findLastVisible(const InterSatelliteLink& edge, const float t0) const {
     for (float t = t0; t <= t0 + edge.getPeriod(); t += step_size) {
         if (edge.isBlocked(t)) {
             return t - step_size;
@@ -134,7 +134,7 @@ float Solver::findLastVisible(const Edge& edge, const float t0) const {
     return INFINITY;
 }
 
-bool Solver::sphereIntersection(const Edge& edge, const float time) {
+bool Solver::sphereIntersection(const InterSatelliteLink& edge, const float time) {
     // represent edge as a unit vector with origin at one of the satellites
     glm::vec3 sat1 = edge.getV1().cartesian_coordinates(time);
     glm::vec3 sat2 = edge.getV2().cartesian_coordinates(time);
@@ -175,7 +175,7 @@ ScanCover Solver::evaluateEdgeOrder(const EdgeOrder& edge_order) {
     ScanCover result;
 
     for (int i : edge_order) {
-        const Edge& e = instance.edges.at(i);
+        const InterSatelliteLink& e = instance.edges.at(i);
         float t_min = std::max(satellite_orientation[&e.getV1()].start, satellite_orientation[&e.getV2()].start);
         float t_next = nextCommunication(e, t_min);
         if (t_next >= INFINITY) {

@@ -17,7 +17,7 @@ class DialogInstance : public QDialog {
     Q_OBJECT
   public:
     DialogInstance(QWidget* parent = nullptr);
-    Instance instance = Instance();
+    PhysicalInstance pyhsical_instance = PhysicalInstance();
 
   private:
     Ui::Dialog* ui;
@@ -42,7 +42,7 @@ class DialogInstance : public QDialog {
     /**
      * @brief Add an orbit to the table.
      */
-    void addOrbit(const StateVector& sv, const float initial_true_anomaly);
+    void addOrbit(const StateVector& sv);
 
   private slots:
     void addSingleOrbit();

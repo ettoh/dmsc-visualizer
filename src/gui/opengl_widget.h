@@ -33,7 +33,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
      * scene with vertices and display it until the next call.
      */
-    void visualizeInstance(const Instance& instance);
+    void visualizeInstance(const PhysicalInstance& instance);
 
     /**
      * @brief Visualize a given solution for the current displayed instance.
@@ -100,7 +100,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
                                  glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
     // scene
     int state = EMPTY;
-    Instance problem_instance = Instance();
+    PhysicalInstance problem_instance = PhysicalInstance();
     std::vector<OpenGLPrimitives::Subscene> scene;
     SysTime_t last_frame_time = std::chrono::system_clock::now();
     float time = .0f;

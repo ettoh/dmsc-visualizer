@@ -24,3 +24,7 @@ git submodule update
 ## Building
 ###  Windows specific
 Ensure that the cmake environment variable ```QTDIR``` to the Qt root install location is set. Ensure that ```{QTDIR}/bin/windeployqt.exe``` exists.
+
+
+## How to use
+soon

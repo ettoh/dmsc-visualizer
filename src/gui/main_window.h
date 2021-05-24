@@ -25,7 +25,7 @@ class MainWindow : public QMainWindow {
   private:
     Ui::MainWindow* ui;
     OpenGLWidget* opengl_widget;
-    Instance problem_instance = Instance();
+    PhysicalInstance problem_instance = PhysicalInstance();
     // solving
     float progress = 0.0f; // percentage [0, 1]
     std::future<ScanCover> solution;

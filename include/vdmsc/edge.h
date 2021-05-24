@@ -11,26 +11,30 @@ struct EdgeOrientation {
     Orientation sat2 = Orientation();
 };
 
-struct Edge {
+struct InterSatelliteLink {
   private:
     const Satellite* v1;
     const Satellite* v2;
-    float period;              // [sec] time until satellite constellations repeat
-    float max_angle;           // [rad] max angle for satellites to see each other
-    float radius_central_mass; // [km]
+    float period;    // [sec] time until satellite constellations repeat
+    float max_angle; // [rad] max angle for satellites to see each other
+    bool optional;   // If true, no communication is scheduled for this edge
+    CentralMass cm;
 
   public:
     // only defined for circular Orbits!
-    Edge(const Satellite* v1, const Satellite* v2, const float radius_central_mass)
-        : v1{v1}, v2{v2}, radius_central_mass(radius_central_mass) {
+    InterSatelliteLink(const Satellite* v1, const Satellite* v2, const CentralMass cm, const bool optional = false)
+        : v1{v1}
+        , v2{v2}
+        , cm(cm)
+        , optional(optional) {
 
         period = v1->getPeriod();
         if (v1->getSemiMajorAxis() != v2->getSemiMajorAxis()) {
             period = v1->getPeriod() * v2->getPeriod(); // [sec]
         }
 
-        max_angle = std::acos(radius_central_mass / v1->getSemiMajorAxis()) +
-                    std::acos(radius_central_mass / v2->getSemiMajorAxis()); // [rad]
+        max_angle = std::acos(cm.radius_central_mass / v1->getSemiMajorAxis()) +
+                    std::acos(cm.radius_central_mass / v2->getSemiMajorAxis()); // [rad]
     };
 
     /**
@@ -106,7 +110,7 @@ struct Edge {
     float getMaxAngle() const { return max_angle; }
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
-    float getRadiusCentralMass() const { return radius_central_mass; }
+    float getRadiusCentralMass() const { return cm.radius_central_mass; }
 };
 
 } // namespace dmsc

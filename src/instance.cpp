@@ -9,28 +9,166 @@
 
 namespace dmsc {
 
-Instance::Instance(const Instance& source) {
-    radius_central_mass = source.radius_central_mass;
-    gravitational_parameter = source.gravitational_parameter;
+Instance::Instance(const std::string& file) {
+    std::string line_cache = "";
+    int mode = READ_INIT;
+    std::ifstream is(file);
+    if (is.fail()) {
+        std::cout << "File could not be opened!" << std::endl;
+        return;
+    }
+
+    while (std::getline(is, line_cache)) {
+        if (line_cache == "===END===") {
+            mode++;
+            continue;
+        }
+
+        // split line by delimiter ','
+        std::string value_cache = "";
+        std::stringstream ss(line_cache);
+
+        try {
+            switch (mode) {
+            case READ_INIT:
+                std::getline(ss, value_cache, ',');
+                cm.radius_central_mass = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                cm.gravitational_parameter = std::stof(value_cache);
+                break;
+            case READ_ORBIT: {
+                StateVector sv;
+                std::getline(ss, value_cache, ',');
+                sv.argument_periapsis = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                sv.eccentricity = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                sv.raan = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                sv.argument_periapsis = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                sv.inclination = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                sv.rotation_speed = std::stof(value_cache);
+                std::getline(ss, value_cache, ',');
+                float initial_true_anomaly = std::stof(value_cache);
+                satellites.push_back(sv);
+                break;
+            }
+            case READ_EDGE: {
+                std::getline(ss, value_cache, ',');
+                uint32_t from_idx = std::stoi(value_cache);
+                std::getline(ss, value_cache, ',');
+                uint32_t to_idx = std::stoi(value_cache);
+                std::getline(ss, value_cache, ',');
+                bool optional = std::stoi(value_cache); // TODO how is bool stored?
+                Edge e = Edge(from_idx, to_idx, optional);
+                edges.push_back(e); // TODO copied by value? -> scope? || should be ok ...
+                break;
+            }
+            default:
+                break;
+            }
+        } catch (const std::exception&) {
+            std::cout << "Error while loading instance!" << std::endl;
+        }
+    }
+    is.close();
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void Instance::save(const std::string& file) const {
+    std::ofstream fs(file);
+    if (fs.fail()) {
+        return; // TODO error
+    }
+
+    /** File format:
+     *
+     * radius, gravitational parameter
+     * ===END===
+     * height_perigee, eccentricity, raan, perigee, inclination, rotation speed, initial_true_anomaly
+     * [...]
+     * ===END===
+     * from_vertex id #1, to_vertex id #2, optional
+     * [...]
+     */
+
+    // instance properties
+    fs << cm.radius_central_mass << ",";
+    fs << cm.gravitational_parameter << "\n";
+    fs << "===END===\n";
+
+    // orbits
+    for (size_t i = 0; i < satellites.size(); i++) {
+        const StateVector& orbit = satellites[i];
+        fs << orbit.height_perigee << ",";
+        fs << orbit.eccentricity << ",";
+        fs << orbit.raan << ",";
+        fs << orbit.argument_periapsis << ",";
+        fs << orbit.inclination << ",";
+        fs << orbit.rotation_speed << ",";
+        fs << satellites[i].initial_true_anomaly << "\n";
+    }
+    fs << "===END===\n";
+
+    // Edges
+    for (size_t i = 0; i < edges.size(); i++) {
+        const Edge& e = edges[i];
+        fs << e.from_idx << ",";
+        fs << e.to_idx << ",";
+        fs << e.optional << "\n";
+    }
+    fs.close();
+}
+
+// ------------------------------------------------------------------------------------------------
+
+PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
+    cm.radius_central_mass = source.cm.radius_central_mass;
+    cm.gravitational_parameter = source.cm.gravitational_parameter;
 
     // copy all orbits and store old location for edges later
-    orbits = source.orbits;
+    satellites = source.satellites;
     std::map<const Satellite*, const Satellite*> orbit_map; // old pos: key | new pos: value
-    for (int i = 0; i < orbits.size(); i++) {
-        orbit_map[&source.orbits[i]] = &orbits[i];
+    for (int i = 0; i < satellites.size(); i++) {
+        orbit_map[&source.satellites[i]] = &satellites[i];
     }
 
     // edges must point to the new orbit objects
-    for (const Edge& edge : source.edges) {
+    for (const InterSatelliteLink& edge : source.edges) {
         const Satellite* new_v1 = orbit_map[&edge.getV1()];
         const Satellite* new_v2 = orbit_map[&edge.getV2()];
-        edges.emplace_back(new_v1, new_v2, edge.getRadiusCentralMass());
+        edges.emplace_back(new_v1, new_v2, cm);
     }
 }
 
 // ------------------------------------------------------------------------------------------------
 
-Instance::Instance(const std::string& file) {
+PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
+    // TODO validate input
+    cm = raw_instance.cm;
+
+    // Satellites
+    satellites.reserve(raw_instance.satellites.size());
+    for (const auto& sv : raw_instance.satellites) {
+        satellites.push_back(Satellite(sv, cm));
+    }
+
+    // Edges
+    edges.reserve(raw_instance.edges.size());
+    for (const auto& e : raw_instance.edges) {
+        if (e.from_idx >= satellites.size() || e.to_idx >= satellites.size())
+            throw std::runtime_error("No such satellite in given vector.");
+
+        edges.push_back(InterSatelliteLink(&satellites[e.from_idx], &satellites[e.to_idx], cm, e.optional));
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+PhysicalInstance::PhysicalInstance(const std::string& file) {
     // load instance from file
     std::string line_cache = "";
     int mode = READ_INIT;
@@ -54,9 +192,9 @@ Instance::Instance(const std::string& file) {
             switch (mode) {
             case READ_INIT:
                 std::getline(ss, value_cache, ',');
-                radius_central_mass = std::stof(value_cache);
+                cm.radius_central_mass = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                gravitational_parameter = std::stof(value_cache);
+                cm.gravitational_parameter = std::stof(value_cache);
                 break;
             case READ_ORBIT: {
                 StateVector sv;
@@ -66,7 +204,7 @@ Instance::Instance(const std::string& file) {
                 std::getline(ss, value_cache, ',');
                 sv.eccentricity = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float anomaly = std::stof(value_cache);
+                sv.initial_true_anomaly = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
                 sv.raan = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
@@ -75,7 +213,7 @@ Instance::Instance(const std::string& file) {
                 sv.inclination = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
                 sv.rotation_speed = std::stof(value_cache);
-                orbits.push_back(Satellite(sv, anomaly, gravitational_parameter, radius_central_mass));
+                satellites.push_back(Satellite(sv, cm));
                 break;
             }
             case READ_EDGE: {
@@ -83,7 +221,7 @@ Instance::Instance(const std::string& file) {
                 int index_orbit_a = std::stoi(value_cache);
                 std::getline(ss, value_cache, ',');
                 int index_orbit_b = std::stoi(value_cache);
-                edges.emplace_back(&orbits.at(index_orbit_a), &orbits.at(index_orbit_b), radius_central_mass);
+                edges.emplace_back(&satellites.at(index_orbit_a), &satellites.at(index_orbit_b), cm);
                 break;
             }
             default:
@@ -99,28 +237,28 @@ Instance::Instance(const std::string& file) {
 
 // ------------------------------------------------------------------------------------------------
 
-Instance& Instance::operator=(const Instance& source) {
+PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     // check for self-assignment
     if (&source == this)
         return *this;
 
-    radius_central_mass = source.radius_central_mass;
-    gravitational_parameter = source.gravitational_parameter;
+    cm.radius_central_mass = source.cm.radius_central_mass;
+    cm.gravitational_parameter = source.cm.gravitational_parameter;
 
     // copy all orbits and store old location for edges later
-    orbits = source.orbits;
-    orbits.shrink_to_fit();
+    satellites = source.satellites;
+    satellites.shrink_to_fit();
     std::map<const Satellite*, const Satellite*> orbit_map; // old pos: key | new pos: value
-    for (int i = 0; i < orbits.size(); i++) {
-        orbit_map[&source.orbits[i]] = &orbits[i];
+    for (int i = 0; i < satellites.size(); i++) {
+        orbit_map[&source.satellites[i]] = &satellites[i];
     }
 
     // edges must point to the new orbit objects
     edges.clear();
-    for (const Edge& edge : source.edges) {
+    for (const InterSatelliteLink& edge : source.edges) {
         const Satellite* new_v1 = orbit_map[&edge.getV1()];
         const Satellite* new_v2 = orbit_map[&edge.getV2()];
-        edges.emplace_back(new_v1, new_v2, edge.getRadiusCentralMass());
+        edges.emplace_back(new_v1, new_v2, cm);
     }
     edges.shrink_to_fit();
 
@@ -129,9 +267,9 @@ Instance& Instance::operator=(const Instance& source) {
 
 // ------------------------------------------------------------------------------------------------
 
-void Instance::removeInvalidEdges() {
+void PhysicalInstance::removeInvalidEdges() {
     for (int i = (int)edges.size() - 1; i >= 0; i--) {
-        const Edge& e = edges[i];
+        const InterSatelliteLink& e = edges[i];
         bool get_visible = false;
         for (float t = 0.0f; t < e.getPeriod(); t += 1.0f) {
             if (!e.isBlocked(t)) {
@@ -150,7 +288,7 @@ void Instance::removeInvalidEdges() {
 
 // ------------------------------------------------------------------------------------------------
 
-LineGraph Instance::lineGraph() const {
+LineGraph PhysicalInstance::lineGraph() const {
     LineGraph g;
 
     // init graph
@@ -158,11 +296,11 @@ LineGraph Instance::lineGraph() const {
         g.edges.push_back(AdjacentList());
     }
 
-    for (const auto& vertex : orbits) {
+    for (const auto& vertex : satellites) {
         // find all edges that are connected to the vertex
         AdjacentList adj_list;
         for (int i = 0; i < edges.size(); i++) {
-            const Edge& edge = edges[i];
+            const InterSatelliteLink& edge = edges[i];
             if (&edge.getV1() == &vertex || &edge.getV2() == &vertex) {
                 adj_list.push_back(i);
             }
@@ -187,7 +325,7 @@ LineGraph Instance::lineGraph() const {
 
 // ------------------------------------------------------------------------------------------------
 
-bool Instance::save(const std::string& file) const {
+bool PhysicalInstance::save(const std::string& file) const {
     std::ofstream fs(file);
     if (fs.fail()) {
         return false;
@@ -204,14 +342,14 @@ bool Instance::save(const std::string& file) const {
      */
 
     // instance properties
-    fs << radius_central_mass << ",";
-    fs << gravitational_parameter << "\n";
+    fs << cm.radius_central_mass << ",";
+    fs << cm.gravitational_parameter << "\n";
     fs << "===END===\n";
 
     // orbits
     std::map<const Satellite*, int> orbit_to_id;
-    for (int i = 0; i < orbits.size(); i++) {
-        const Satellite& orbit = orbits.at(i);
+    for (int i = 0; i < satellites.size(); i++) {
+        const Satellite& orbit = satellites.at(i);
         orbit_to_id[&orbit] = i;
         fs << i << ",";
         fs << orbit.getHeightPerigee() << ",";

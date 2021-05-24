@@ -7,8 +7,8 @@ namespace dmsc {
 
 class SimulatedAnnealing : public Solver {
   public:
-    SimulatedAnnealing(const Instance& instance) : Solver(instance) {}
-    SimulatedAnnealing(const Instance& instance, Callback callback) : Solver(instance, callback) {}
+    SimulatedAnnealing(const PhysicalInstance& instance) : Solver(instance) {}
+    SimulatedAnnealing(const PhysicalInstance& instance, Callback callback) : Solver(instance, callback) {}
     ScanCover solve();
 };
 

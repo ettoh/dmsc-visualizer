@@ -12,8 +12,8 @@ ScanCover GreedyNext::solve() {
     satellite_orientation.clear();
 
     // Prepare edges for computation
-    std::vector<const Edge*> remaining_edges;
-    for (const Edge& e : instance.edges) {
+    std::vector<const InterSatelliteLink*> remaining_edges;
+    for (const InterSatelliteLink& e : instance.edges) {
         float t_communication = nextCommunication(e, 0.0f);
         if (t_communication < INFINITY) {
             remaining_edges.push_back(&e);
@@ -32,7 +32,7 @@ ScanCover GreedyNext::solve() {
 
         // find best edge depending on the time passed
         for (int i = 0; i < remaining_edges.size(); i++) {
-            const Edge& e = *remaining_edges.at(i);
+            const InterSatelliteLink& e = *remaining_edges.at(i);
             float next_communication = nextCommunication(e, curr_time);
 
             // edge is avaible earlier
@@ -51,7 +51,7 @@ ScanCover GreedyNext::solve() {
 
         // refresh orientation of chosen satellites
         // todo only recalculate needed satellites ...
-        const Edge* e = remaining_edges.at(best_edge_pos);
+        const InterSatelliteLink* e = remaining_edges.at(best_edge_pos);
         EdgeOrientation new_orientations = e->getOrientation(t_next);
         satellite_orientation[&e->getV1()] = new_orientations.sat1;
         satellite_orientation[&e->getV2()] = new_orientations.sat2;

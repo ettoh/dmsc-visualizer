@@ -111,12 +111,12 @@ void OpenGLWidget::paintGL() {
     }
 }
 
-void OpenGLWidget::visualizeInstance(const Instance& instance) {
+void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     makeCurrent();
     deleteInstance();
     state = INSTANCE;
     // copy so visualization does not depend on original instance
-    problem_instance = Instance(instance);
+    problem_instance = PhysicalInstance(instance);
     last_frame_time = std::chrono::system_clock::now();
     time = 0;
 
@@ -153,7 +153,7 @@ void OpenGLWidget::visualizeInstance(const Instance& instance) {
     // 1. build meshes and push them to the gpu
     Mesh sphere = OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
-    for (const Satellite& o : problem_instance.orbits) {
+    for (const Satellite& o : problem_instance.satellites) {
         // Orbit
         Mesh orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
         static_subscene.add(orbit);
@@ -165,7 +165,7 @@ void OpenGLWidget::visualizeInstance(const Instance& instance) {
 
     // 1.2 Edges & orientations
     // 1 line per edge + 1 line for each; 2 vertices per line
-    size_t size = 2 * (problem_instance.edges.size() + problem_instance.orbits.size());
+    size_t size = 2 * (problem_instance.edges.size() + problem_instance.satellites.size());
     for (int i = 0; i < size; i += 2) {
         Mesh edge;
         edge.gl_draw_mode = GL_LINES;
@@ -240,7 +240,7 @@ void OpenGLWidget::visualizeSolution(const ScanCover& scan_cover) {
 
     // build timetable for satellite orientations
     for (auto const& s : solution) {
-        const Edge& e = problem_instance.edges.at(s.edge_index);
+        const InterSatelliteLink& e = problem_instance.edges.at(s.edge_index);
         satellite_orientations.add(&e.getV1(), s.edge_orientation.sat1);
         satellite_orientations.add(&e.getV2(), s.edge_orientation.sat2);
     }
@@ -345,10 +345,10 @@ void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
     std::vector<GLfloat> positions;
     size_t nmbr_vertecies = 0;
-    if (problem_instance.orbits.size() != 0) // size() will fail if no orbits in instance
+    if (problem_instance.satellites.size() != 0) // size() will fail if no orbits in instance
         // assume that all satellites have the same amount of vertices
         nmbr_vertecies = satellite_subscene->getObjects().at(0).number_vertices;
-    for (const Satellite& o : problem_instance.orbits) {
+    for (const Satellite& o : problem_instance.satellites) {
         glm::vec3 offset = o.cartesian_coordinates(time) / real_world_scale;
         for (int i = 0; i < nmbr_vertecies; i++) {
             positions.push_back(offset.x);
@@ -369,7 +369,7 @@ void OpenGLWidget::recalculateEdges() {
     // build edges
     Mesh all_lines;
     for (int i = 0; i < problem_instance.edges.size(); i++) {
-        const Edge& edge = problem_instance.edges.at(i);
+        const InterSatelliteLink& edge = problem_instance.edges.at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(time) / real_world_scale;
         VertexData vertex_1(sat1.x, sat1.y, sat1.z);
@@ -402,7 +402,7 @@ void OpenGLWidget::recalculateEdges() {
     }
 
     // build satellite orientations
-    for (auto const& orbit : problem_instance.orbits) {
+    for (auto const& orbit : problem_instance.satellites) {
         glm::vec3 position = orbit.cartesian_coordinates(time) / real_world_scale;
         Orientation last_orientation = satellite_orientations.previous(&orbit, time);
         Orientation next_orientation = satellite_orientations.next(&orbit, time);
@@ -435,7 +435,7 @@ void OpenGLWidget::recalculateEdges() {
     if (state == SOLUTION) {
         // todo multiple edges at the same time?
         if (solution.at(current_scan).time < time) {
-            const Edge& e = problem_instance.edges[solution.at(current_scan).edge_index];
+            const InterSatelliteLink& e = problem_instance.edges[solution.at(current_scan).edge_index];
             edge_subscene->disable(solution.at(current_scan).edge_index);
             current_scan++;
             std::cout << ".";

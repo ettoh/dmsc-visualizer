@@ -10,6 +10,14 @@
 namespace dmsc {
 
 /**
+ * @brief TODO
+ */
+struct CentralMass {
+    float gravitational_parameter = 398599; // [km^3 / s^2] (default: earth)
+    float radius_central_mass = 6378;       // [km] (default: earth)
+};
+
+/**
  * @brief Contains all parameters that are needed to describe a Keplerian orbit.
  * For more information on the parameters, search for "Orbital elements for Kepler orbits" - you can do it!
  *
@@ -17,12 +25,24 @@ namespace dmsc {
  * to compute such things like position or period you need information about the central mass (i.e. radius and mass).
  */
 struct StateVector {
-    float height_perigee = 200.0f;   // [km] height of the perigee above the central mass
-    float eccentricity = 0.0f;       // [rad]
-    float inclination = 0.0f;        // [rad]
-    float argument_periapsis = 0.0f; // [rad]
-    float raan = 0.0f;               // [rad] right ascension of the ascending node
-    float rotation_speed = .005f;    // [rad/sec] speed of rotation (for the satellite to orientate)
+    float height_perigee = 200.0f;     // [km] height of the perigee above the central mass
+    float eccentricity = 0.0f;         // [rad]
+    float inclination = 0.0f;          // [rad]
+    float argument_periapsis = 0.0f;   // [rad]
+    float raan = 0.0f;                 // [rad] right ascension of the ascending node
+    float rotation_speed = .005f;      // [rad/sec] speed of rotation (for the satellite to orientate)
+    float initial_true_anomaly = 0.0f; // [rad]
+
+    /**
+     * @brief Return true if the shape and position of two keplarian orbits are equal. The initial true anomaly is not taken into
+     * account!
+     */
+    bool operator==(const StateVector& e) {
+        return height_perigee == e.height_perigee && eccentricity == e.eccentricity && inclination == e.inclination &&
+               argument_periapsis == e.argument_periapsis && raan == e.raan && rotation_speed == e.rotation_speed;
+    } // TODO test
+
+    bool operator!=(const StateVector& e) { return !(*this == e); } // TODO test
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -35,16 +55,13 @@ class Satellite {
      * @param initial_true_anomaly [rad]
      * @param gravitational_parameter [km^3 / s^2]
      */
-    Satellite(const StateVector sv, const float initial_true_anomaly, const float gravitational_parameter,
-              const float radius_central_mass)
+    Satellite(const StateVector sv, const CentralMass& cm)
         : sv(sv)
-        , initial_true_anomaly(initial_true_anomaly)
-        , gravitational_parameter(gravitational_parameter)
-        , radius_central_mass(radius_central_mass) {
+        , cm(cm) {
 
-        semi_major_axis = (sv.height_perigee + radius_central_mass) / (1 - sv.eccentricity);
-        period = 2.0f * static_cast<float>(M_PI) * sqrtf(powf(semi_major_axis, 3.0f) / gravitational_parameter); // [sec]
-        mean_angular_speed = (2.0f * static_cast<float>(M_PI)) / period;                                         // [rad/sec]
+        semi_major_axis = (sv.height_perigee + cm.radius_central_mass) / (1 - sv.eccentricity);
+        period = 2.0f * static_cast<float>(M_PI) * sqrtf(powf(semi_major_axis, 3.0f) / cm.gravitational_parameter); // [sec]
+        mean_angular_speed = (2.0f * static_cast<float>(M_PI)) / period;                                            // [rad/sec]
     }
 
     /**
@@ -60,7 +77,7 @@ class Satellite {
 
         // find true anomaly
         if (sv.eccentricity == 0.0) { // circular orbit - easier to calculate
-            current_true_anomaly = initial_true_anomaly + mean_angular_speed * time;
+            current_true_anomaly = sv.initial_true_anomaly + mean_angular_speed * time;
             radius = semi_major_axis;
         } else if (sv.eccentricity < 1.0f && sv.eccentricity > 0.0f) { // ellipse - numerical iteration needed
             float mean_anomaly =
@@ -97,7 +114,7 @@ class Satellite {
     float getSemiMajorAxis() const { return semi_major_axis; }
     float getEccentricity() const { return sv.eccentricity; }
     float getRotationSpeed() const { return sv.rotation_speed; }
-    float getTrueAnomaly() const { return initial_true_anomaly; }
+    float getTrueAnomaly() const { return sv.initial_true_anomaly; }
     float getRaan() const { return sv.raan; }
     float getArgumentPeriapsis() const { return sv.argument_periapsis; }
     float getInclination() const { return sv.inclination; }
@@ -108,12 +125,10 @@ class Satellite {
 
   private:
     StateVector sv;
-    float gravitational_parameter; // [km^3 / s^2]
-    float radius_central_mass;     // [km]
-    float period;                  // [sec]
-    float mean_angular_speed;      // [rad / sec]
-    float initial_true_anomaly;    // [rad]
-    float semi_major_axis;         // [km]
+    CentralMass cm;
+    float period;             // [sec]
+    float mean_angular_speed; // [rad / sec]
+    float semi_major_axis;    // [km]
 };
 
 // ------------------------------------------------------------------------------------------------
