@@ -1,4 +1,4 @@
-#include "opengl_primitives.h"
+#include "opengl_primitives.hpp"
 
 namespace dmsc {
 
@@ -7,8 +7,8 @@ using OpenGLPrimitives::Mesh;
 Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const int accuracy) {
     int number_of_stacks = accuracy;
     int number_of_sectors = accuracy * 2;
-    float stack_step = M_PI / number_of_stacks;
-    float sector_step = 2 * M_PI / number_of_sectors;
+    float stack_step = static_cast<float>(M_PI) / number_of_stacks;
+    float sector_step = 2.f * static_cast<float>(M_PI) / number_of_sectors;
 
     Mesh model = Mesh();
     model.gl_draw_mode = GL_TRIANGLES;
@@ -37,7 +37,7 @@ Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, 
             VertexData vertex = VertexData();
 
             // Vertices
-            float stack_angle = M_PI / 2 - (i * stack_step);
+            float stack_angle = static_cast<float>(M_PI) / 2.f - (i * stack_step);
             float sector_angle = (j * sector_step);
 
             vertex.x = center.y + radius * cos(stack_angle) * sin(sector_angle); // y

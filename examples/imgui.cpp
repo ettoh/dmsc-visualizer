@@ -1,4 +1,4 @@
-#include "dmsc/gui.hpp"
+#include "dmsc/visuals.hpp"
 #include <iostream>
 
 int main() {

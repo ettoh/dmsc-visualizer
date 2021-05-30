@@ -1,3 +1,0 @@
-namespace dmsc{
-    int newWindow();
-}

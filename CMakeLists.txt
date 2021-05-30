@@ -29,8 +29,6 @@ find_package(glm REQUIRED)
 find_package(glfw3 REQUIRED)
 
 add_library(dmsc STATIC)
-add_subdirectory(./src/solver)
-add_subdirectory(./src/gui)
 
 set(imgui_files
     libs/imgui/imgui.cpp
@@ -44,23 +42,24 @@ set(imgui_files
 
 target_sources(dmsc
     PRIVATE
-        src/gui.cpp
+        src/visuals.cpp
         src/instance.cpp
+        src/opengl_widgets.cpp
+        src/opengl_primitives.cpp
         src/glad/glad.c
         ${imgui_files}
 )
 
 target_include_directories(dmsc
     PRIVATE
-        libs/imgui
-        libs/imgui/backends
-    PUBLIC # todo for now ok ... but has to be private
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        libs/imgui
+        libs/imgui/backends        
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(dmsc Qt5::Widgets glm::glm glfw solver gui)
+target_link_libraries(dmsc Qt5::Widgets glm::glm glfw)
 
 if(UNIX)
     target_link_libraries(dmsc ${CMAKE_DL_LIBS})

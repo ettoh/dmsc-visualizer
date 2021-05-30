@@ -1,21 +1,22 @@
 # Executables
-add_executable(sample_main_window main_window.cpp)
 add_executable(sample_imgui imgui.cpp)
-target_link_libraries(sample_main_window dmsc)
+add_executable(sample_simulation simulation.cpp)
 target_link_libraries(sample_imgui dmsc)
+target_link_libraries(sample_simulation dmsc)
 
+# Copy binary files
+# TODO put these into a dedicated cmake-function to access it from "outside"
 # TODO put resources into dmsc library OR more flexible path to resources ...
-#Copy shader and binary files
-#If only the shader files changed - we need them to be copied even if gui hasn't changed
+# If only the shader files changed - we need them to be copied even if gui hasn't changed
 add_custom_target(always ALL)
 add_custom_command(
     TARGET always POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_main_window>/shaders
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/shaders
     COMMAND ${CMAKE_COMMAND} -E copy_directory              
-        ${CMAKE_SOURCE_DIR}/src/gui/shaders $<TARGET_FILE_DIR:sample_main_window>/shaders
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_main_window>/bin
+        ${CMAKE_SOURCE_DIR}/bin/shader $<TARGET_FILE_DIR:sample_simulation>/shaders
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/bin
     COMMAND ${CMAKE_COMMAND} -E copy_directory              
-        ${CMAKE_SOURCE_DIR}/src/gui/bin $<TARGET_FILE_DIR:sample_main_window>/bin
+        ${CMAKE_SOURCE_DIR}/bin/textures $<TARGET_FILE_DIR:sample_simulation>/bin
     VERBATIM)
 
 # Windows QT dll's
@@ -28,7 +29,7 @@ if (WIN32)
             message(WARNING "Unable to find windeployqt!")
         endif()
 
-        add_custom_command(TARGET sample_main_window POST_BUILD 
-            COMMAND ${exec_windep} $<TARGET_FILE:sample_main_window>)
+        add_custom_command(TARGET sample_simulation POST_BUILD 
+            COMMAND ${exec_windep} $<TARGET_FILE:sample_simulation>)
     endif()
 endif (WIN32)

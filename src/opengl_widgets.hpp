@@ -1,0 +1,111 @@
+#include "opengl_primitives.hpp"
+#include "scan_cover.hpp"
+#include <dmsc/instance.hpp>
+#include <map>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <vector>
+
+#include <glad/glad.h>
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+namespace dmsc {
+
+constexpr auto PI2 = 2 * M_PI; // 2pi
+
+class OpenGLWidget {
+  public:
+    OpenGLWidget();
+    ~OpenGLWidget();
+    OpenGLWidget(const OpenGLWidget&) = delete;
+    OpenGLWidget& operator=(const OpenGLWidget&) = delete;
+
+    enum VisualisationState { EMPTY, INSTANCE, SOLUTION };
+
+    void show(const PhysicalInstance& instance);
+
+  private:
+    void init();
+    void destroy();
+    void buildGUI();
+    void renderScene();
+    void drawSubscene(const OpenGLPrimitives::Subscene& subscene);
+    void recalculate();
+    void recalculateOrbitPositions();
+    void recalculateEdges();
+    void deleteInstance();
+    void pushSceneToGPU();
+
+    /**
+     * @brief Convert a given instance with orbits and communications between the satellites into an opengl
+     * scene with vertices and display it until the next call.
+     */
+    void visualizeInstance(const PhysicalInstance& instance);
+
+    /**
+     * @brief Visualize a given solution for the current displayed instance.
+     */
+    void visualizeSolution(const ScanCover& scan_cover);
+
+    /**
+     * @brief Read source code for a shader from a local file.
+     * @param file_name Relative path to the file.
+     * @return String that contains the shader source code.
+     */
+    std::string readShader(const std::string& file_name);
+
+    /**
+     * @brief Compile given source code into a shader.
+     * @param file_name Relative path to the file that contains the source code.
+     * @param shader_type GL constant that determines the shader type.
+     * @return A compiled shader object.
+     */
+    GLuint createShader(const std::string& file_name, GLenum shader_type);
+
+    /**
+     * @brief Link two shader to an opengl program.
+     * @param vertex_shader
+     * @param fragment_shader
+     * @return Linked opengl program.
+     */
+    GLuint createProgram(const GLuint vertex_shader, const GLuint fragment_shader);
+
+    static void glfw_error_callback(int error, const char* description) {
+        fprintf(stderr, "Glfw Error %d: %s\n", error, description);
+    }
+
+  private:
+    GLFWwindow* window = nullptr;
+    const float real_world_scale = 7000.0f;
+
+    // Handler
+    GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
+    GLuint vbo_uniforms = 0;
+    GLuint texture_id = 0;
+    GLint uniform_texture_location = 0;
+    // view
+    float zoom = 1.0f;
+    glm::vec2 mouse_start_location = glm::vec2(0);
+    glm::mat4 projection = glm::perspective(45.0f, 1.0f * 1280 / 720, 0.1f, 10.0f);
+    glm::mat4 camera_rotation = glm::mat4(1.0f);
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                                 glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
+    // scene
+    int state = VisualisationState::EMPTY;
+    PhysicalInstance problem_instance = PhysicalInstance();
+    std::vector<OpenGLPrimitives::Subscene> scene;
+    // SysTime_t last_frame_time = std::chrono::system_clock::now();
+    float sim_time = 0.0f;
+    int sim_speed = 1;
+    bool paused = false; // if true -> the simulations is paused
+    OpenGLPrimitives::Subscene* satellite_subscene = nullptr;
+    OpenGLPrimitives::Subscene* edge_subscene = nullptr;
+    // solution
+    ScanCover solution = ScanCover();
+    int current_scan = 0;
+    std::map<const Satellite*, Timeline<glm::vec3>> satellite_orientations;
+};
+
+} // namespace dmsc

@@ -5,7 +5,7 @@
 
 #include "dmsc/glm_include.hpp"
 #include "dmsc/satellite.hpp"
-#include <QOpenGLFunctions_3_3_Core>
+#include <glad/glad.h>
 #include <math.h>
 #include <vector>
 
@@ -22,8 +22,14 @@ struct VertexData {
     float nx = 0.0f, ny = 0.0f, nz = 0.0f; // normal
 
     VertexData() = default;
-    VertexData(const float x, const float y, const float z) : x(x), y(y), z(z) {}
-    VertexData(const glm::vec3& v) : x(v.x), y(v.y), z(v.z) {}
+    VertexData(const float x, const float y, const float z)
+        : x(x)
+        , y(y)
+        , z(z) {}
+    VertexData(const glm::vec3& v)
+        : x(v.x)
+        , y(v.y)
+        , z(v.z) {}
     void setColor(const float r, const float g, const float b) {
         this->r = r;
         this->g = g;
@@ -65,7 +71,10 @@ struct Object {
     float gl_draw_mode = GL_TRIANGLES;
     bool enabled = true;
 
-    Object(size_t vert, size_t elem, float draw_mode) : number_vertices(vert), number_elements(elem), gl_draw_mode(draw_mode) {}
+    Object(size_t vert, size_t elem, float draw_mode)
+        : number_vertices(vert)
+        , number_elements(elem)
+        , gl_draw_mode(draw_mode) {}
 };
 
 /**
