@@ -4,7 +4,7 @@ Library to visualize and solve instances of the algorithmic *Dynamic Minimum Sca
 ## Cloning
 This repository contains submodules for external dependencies. When doing a fresh clone, make sure you clone recursively:
 ```
-git clone --recursive <path to repository>
+git clone --recursive https://github.com/mc-thulu/dmsc-visualizer.git
 ```
 Updating an already cloned repository:
 ```

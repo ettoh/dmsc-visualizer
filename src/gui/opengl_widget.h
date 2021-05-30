@@ -7,7 +7,7 @@
 #include "opengl_primitives.h"
 #include "dmsc/glm_include.h"
 #include "dmsc/instance.h"
-#include "dmsc/timetable.h"
+#include "dmsc/timeline.h"
 #include <QOpenGLWidget>
 #include <chrono>
 #include <math.h>
@@ -111,7 +111,7 @@ class OpenGLWidget : public QOpenGLWidget, protected QOpenGLFunctions_3_3_Core {
     // solution
     ScanCover solution = ScanCover();
     int current_scan = 0;
-    Timetable<Satellite, Orientation> satellite_orientations = Timetable<Satellite, Orientation>();
+    std::map<const Satellite*, Timeline<glm::vec3>> satellite_orientations;
 
   private slots:
     void drawLoop();

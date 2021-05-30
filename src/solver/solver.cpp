@@ -19,6 +19,7 @@ float Solver::lowerBound() {
     }
     return lower_bound;
 }
+
 float Solver::nextCommunication(const InterSatelliteLink& edge, const float time_0) {
     // edge is never visible?
     float t_visible = nextVisibility(edge, time_0);
@@ -27,8 +28,22 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
     }
 
     // get current orientation of both satellites
-    Orientation sat1 = satellite_orientation[&edge.getV1()];
-    Orientation sat2 = satellite_orientation[&edge.getV2()];
+    // TODO improve? simplify? -> use invalid events (see canAlign function)
+    TimelineEvent<glm::vec3> sat1;
+    auto search = satellite_orientation.find(&edge.getV1());
+    if (search != satellite_orientation.end()) {
+        sat1 = satellite_orientation[&edge.getV1()];
+    } else {
+        sat1 = TimelineEvent<glm::vec3>(0.f, 0.f, glm::vec3(0.f));
+    }
+
+    TimelineEvent<glm::vec3> sat2;
+    search = satellite_orientation.find(&edge.getV2());
+    if (search != satellite_orientation.end()) {
+        sat2 = satellite_orientation[&edge.getV2()];
+    } else {
+        sat2 = TimelineEvent<glm::vec3>(0.f, 0.f, glm::vec3(0.f));
+    }
 
     // edge can be scanned directly?
     if (edge.canAlign(sat1, sat2, t_visible)) {
@@ -36,7 +51,7 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
     }
 
     // satellites can't align => search for a time where they can
-    // max time to align ==> time for a 180� turn
+    // max time to align ==> time for a 180 deg turn
     float t_max = std::max(static_cast<float>(M_PI) / edge.getV1().getRotationSpeed(),
                            static_cast<float>(M_PI) / edge.getV2().getRotationSpeed());
     t_max += edge.getPeriod();
@@ -45,11 +60,17 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
         if (edge.isBlocked(t)) { // skip time where edge is blocked
             // find next slot where edge is visible
             float t_relative = fmodf(t, edge.getPeriod());
-            TimeSlot next_slot = edge_time_slots.next(&edge, t_relative);
-            if (next_slot.start == -1.0f) { // last time slot passed -> choose first
-                t += (edge.getPeriod() - t_relative) + edge_time_slots.first(&edge).start;
-            } else {
-                t += (next_slot.start - t_relative);
+            auto search = edge_time_slots.find(&edge);
+            float t_next = 0.0f;
+
+            if (search != edge_time_slots.end()) {
+                t_next = search->second.nextTimeWithEvent(t_relative, true);
+            }
+
+            if (t_next < t_relative) { // loop applied
+                t += t_next + edge.getPeriod() - t_relative;
+            } else { // loop not applied
+                t += t_next - t_relative;
             }
         }
 
@@ -81,37 +102,28 @@ void Solver::createCache() {
                 t_end = edge.getPeriod();
             }
 
-            TimeSlot s;
-            s.start = t_next;
-            s.end = t_end;
-            edge_time_slots.add(&edge, s);
-            t = s.end;
+            TimelineEvent<> slot(t_next, t_end);
+            edge_time_slots[&edge].insert(slot);
+            t = slot.t_end;
         }
     }
 }
 
 float Solver::nextVisibility(const InterSatelliteLink& edge, const float t0) {
-    if (edge_time_slots.size(&edge) == 0) {
+    if (edge_time_slots[&edge].size() == 0) {
         return INFINITY;
     }
 
     const InterSatelliteLink* p = &edge;
     float t = std::fmod(t0, edge.getPeriod());
     float n_periods = edge.getPeriod() * (int)(t0 / edge.getPeriod());
-    TimeSlot prev = edge_time_slots.previous(&edge, t);
-    TimeSlot next = edge_time_slots.next(&edge, t);
 
-    if (prev.start == -1.0f) { // no prev and at least one in total => choose next
-        return next.start + n_periods;
+    float t_next = edge_time_slots[&edge].nextTimeWithEvent(t, true);
+    if (t_next < t) { // loop applied
+        n_periods += edge.getPeriod();
     }
 
-    if (prev.end >= t) { // currently visible
-        return t0;
-    } else if (next.start != -1.0f) { // currently not visible but a next one available
-        return next.start + n_periods;
-    } else { // currently not visible but no next one available => choose very first time slot
-        return edge_time_slots.first(&edge).start + n_periods + edge.getPeriod();
-    }
+    return t_next + n_periods;
 }
 
 float Solver::findNextVisiblity(const InterSatelliteLink& edge, const float t0) const {
@@ -176,7 +188,22 @@ ScanCover Solver::evaluateEdgeOrder(const EdgeOrder& edge_order) {
 
     for (int i : edge_order) {
         const InterSatelliteLink& e = instance.edges.at(i);
-        float t_min = std::max(satellite_orientation[&e.getV1()].start, satellite_orientation[&e.getV2()].start);
+        float last_change_sat1 = 0.0f;
+        float last_change_sat2 = 0.0f;
+
+        // When was the last time the satellites turned?
+        auto search = satellite_orientation.find(&e.getV1());
+        if (search != satellite_orientation.end()) {
+            last_change_sat1 = search->second.t_begin;
+        }
+
+        search = satellite_orientation.find(&e.getV2());
+        if (search != satellite_orientation.end()) {
+            last_change_sat2 = search->second.t_begin;
+        }
+
+        // Calculate time when the edge is scanned.
+        float t_min = std::max(last_change_sat1, last_change_sat2);
         float t_next = nextCommunication(e, t_min);
         if (t_next >= INFINITY) {
             continue;
@@ -185,8 +212,10 @@ ScanCover Solver::evaluateEdgeOrder(const EdgeOrder& edge_order) {
         result.addEdgeDialog(i, t_next, orientation);
 
         // refresh satellite orientations
-        satellite_orientation[&e.getV1()] = orientation.sat1;
-        satellite_orientation[&e.getV2()] = orientation.sat2;
+        satellite_orientation[&e.getV1()] =
+            TimelineEvent<glm::vec3>(orientation.sat1.start, orientation.sat1.start, orientation.sat1.direction);
+        satellite_orientation[&e.getV2()] =
+            TimelineEvent<glm::vec3>(orientation.sat2.start, orientation.sat2.start, orientation.sat2.direction);
     }
     result.sort();
     return result;

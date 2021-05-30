@@ -53,8 +53,10 @@ ScanCover GreedyNext::solve() {
         // todo only recalculate needed satellites ...
         const InterSatelliteLink* e = remaining_edges.at(best_edge_pos);
         EdgeOrientation new_orientations = e->getOrientation(t_next);
-        satellite_orientation[&e->getV1()] = new_orientations.sat1;
-        satellite_orientation[&e->getV2()] = new_orientations.sat2;
+        satellite_orientation[&e->getV1()] = TimelineEvent<glm::vec3>(
+            new_orientations.sat1.start, new_orientations.sat1.start, new_orientations.sat1.direction);
+        satellite_orientation[&e->getV2()] = TimelineEvent<glm::vec3>(
+            new_orientations.sat2.start, new_orientations.sat2.start, new_orientations.sat2.direction);
 
         // map position in remaining edges to position in all edges
         std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.edges[0];

@@ -1,11 +1,13 @@
 #ifndef EDGE_H
 #define EDGE_H
 
-#include "satellite.h"
 #include "dmsc/glm_include.h"
+#include "satellite.h"
+#include "timeline.h"
 
 namespace dmsc {
 
+// TODO delete
 struct EdgeOrientation {
     Orientation sat1 = Orientation();
     Orientation sat2 = Orientation();
@@ -45,8 +47,10 @@ struct InterSatelliteLink {
         glm::vec3 sat1 = v1->cartesian_coordinates(time);
         glm::vec3 sat2 = v2->cartesian_coordinates(time);
 
-        if (v1->getEccentricity() == 0.0f && v2->getEccentricity() == 0.0f) { // both satellites are circular => easier to compute
-            double angle_sats = std::acos(glm::dot(sat1, sat2) / (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
+        if (v1->getEccentricity() == 0.0f &&
+            v2->getEccentricity() == 0.0f) { // both satellites are circular => easier to compute
+            double angle_sats =
+                std::acos(glm::dot(sat1, sat2) / (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
 
             // glm::vec3
             glm::vec3 tmp = sat1 + sat2;
@@ -64,18 +68,19 @@ struct InterSatelliteLink {
      * @param origin Start alignment of both satellites and the time they changed for the last time.
      * @return True, if alignment can be performed.
      */
-    bool canAlign(const Orientation& sat1, const Orientation& sat2, const float t) const {
+    // TODO rework behavior if TimelineEvent is "invalid" - what if satellite was not part of a communication before ...
+    bool canAlign(const TimelineEvent<glm::vec3>& sat1, const TimelineEvent<glm::vec3>& sat2, const float t) const {
         EdgeOrientation target = getOrientation(t);
         float angle_sat1 = .0f;
         float angle_sat2 = .0f;
 
         // calc angle between orientations; direction vectors must be length 1
-        if (sat1.direction != glm::vec3(0.0f)) {
-            angle_sat1 = std::acos(glm::dot(sat1.direction, target.sat1.direction)); // [rad]
+        if (sat1.isValid()) {
+            angle_sat1 = std::acos(glm::dot(sat1.data, target.sat1.direction)); // [rad]
         }
 
-        if (sat2.direction != glm::vec3(0.0f)) {
-            angle_sat2 = std::acos(glm::dot(sat2.direction, target.sat2.direction)); // [rad]
+        if (sat2.isValid()) {
+            angle_sat2 = std::acos(glm::dot(sat2.data, target.sat2.direction)); // [rad]
         }
 
         // time needed for alignment
@@ -83,7 +88,7 @@ struct InterSatelliteLink {
         float turn_time_s2 = angle_sat2 / v2->getRotationSpeed(); // [sec]
 
         // enough time?
-        if (turn_time_s1 > t - sat1.start || turn_time_s2 > t - sat2.start) {
+        if (turn_time_s1 > t - sat1.t_begin || turn_time_s2 > t - sat2.t_begin) {
             return false;
         }
 

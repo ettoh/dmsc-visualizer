@@ -1,6 +1,6 @@
 #include "opengl_widget.h"
-#include "opengl_toolkit.h"
 #include "dmsc/glm_include.h"
+#include "opengl_toolkit.h"
 #include <QImage>
 #include <QOpenGLTexture>
 #include <QTimer>
@@ -14,7 +14,8 @@ using OpenGLPrimitives::Object;
 using OpenGLPrimitives::Subscene;
 using OpenGLPrimitives::VertexData;
 
-OpenGLWidget::OpenGLWidget(QWidget* parent) : QOpenGLWidget(parent) {
+OpenGLWidget::OpenGLWidget(QWidget* parent)
+    : QOpenGLWidget(parent) {
     setMouseTracking(false); // track mouse only if mouse button is pressed
 }
 
@@ -151,7 +152,8 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     glGenBuffers(1, &edge_subscene.ibo_static);
 
     // 1. build meshes and push them to the gpu
-    Mesh sphere = OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
+    Mesh sphere =
+        OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
     for (const Satellite& o : problem_instance.satellites) {
         // Orbit
@@ -241,8 +243,14 @@ void OpenGLWidget::visualizeSolution(const ScanCover& scan_cover) {
     // build timetable for satellite orientations
     for (auto const& s : solution) {
         const InterSatelliteLink& e = problem_instance.edges.at(s.edge_index);
-        satellite_orientations.add(&e.getV1(), s.edge_orientation.sat1);
-        satellite_orientations.add(&e.getV2(), s.edge_orientation.sat2);
+
+        float t = s.edge_orientation.sat1.start;
+        glm::vec3 dir = s.edge_orientation.sat1.direction;
+        satellite_orientations[&e.getV1()].insert(TimelineEvent<glm::vec3>(t, t, dir));
+
+        t = s.edge_orientation.sat2.start;
+        dir = s.edge_orientation.sat2.direction;
+        satellite_orientations[&e.getV2()].insert(TimelineEvent<glm::vec3>(t, t, dir));
     }
 }
 
@@ -387,8 +395,10 @@ void OpenGLWidget::recalculateEdges() {
             if (solution.at(current_scan).edge_index == i) { // edge is scanned next
                 vertex_1.setColor(1.0f, .75f, 0.0f);
                 vertex_2.setColor(1.0f, .75f, 0.0f);
-            } else if (edge.isBlocked(time) || !edge.canAlign(satellite_orientations.previous(&edge.getV1(), time),
-                                                              satellite_orientations.previous(&edge.getV2(), time), time)) {
+            } else if (edge.isBlocked(time) ||
+                       !edge.canAlign(satellite_orientations[&edge.getV1()].previousEvent(time),
+                                      satellite_orientations[&edge.getV2()].previousEvent(time), time)) {
+
                 vertex_1.setColor(1.0f, 0.0f, 0.0f);
                 vertex_2.setColor(1.0f, 0.0f, 0.0f);
             } else {
@@ -402,16 +412,28 @@ void OpenGLWidget::recalculateEdges() {
     }
 
     // build satellite orientations
-    for (auto const& orbit : problem_instance.satellites) {
-        glm::vec3 position = orbit.cartesian_coordinates(time) / real_world_scale;
-        Orientation last_orientation = satellite_orientations.previous(&orbit, time);
-        Orientation next_orientation = satellite_orientations.next(&orbit, time);
-        float angle = std::acos(glm::dot(last_orientation.direction, next_orientation.direction)); // [rad]
-        float dt = time - last_orientation.start;
+    for (auto const& satellite : problem_instance.satellites) {
+        glm::vec3 position = satellite.cartesian_coordinates(time) / real_world_scale;
 
-        glm::vec3 direction_vector = last_orientation.direction;
-        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * orbit.getRotationSpeed()),
-                                       glm::cross(direction_vector, next_orientation.direction));
+        TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&satellite].previousEvent(time, false);
+        TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&satellite].prevailingEvent(time, false);
+
+        if (!last_orientation.isValid()) {
+            last_orientation.t_begin = 0.f;
+            last_orientation.data = glm::vec3(0.f);
+        }
+
+        if (!next_orientation.isValid()) {
+            next_orientation.t_begin = 0.f;
+            next_orientation.data = glm::vec3(0.f);
+        }
+
+        float angle = std::acos(glm::dot(last_orientation.data, next_orientation.data)); // [rad]
+        float dt = time - last_orientation.t_begin;
+
+        glm::vec3 direction_vector = last_orientation.data;
+        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * satellite.getRotationSpeed()),
+                                       glm::cross(direction_vector, next_orientation.data));
 
         VertexData origin(position);
         VertexData direction(position + direction_vector * 0.025f);
@@ -434,6 +456,7 @@ void OpenGLWidget::recalculateEdges() {
     // iterate through scan cover
     if (state == SOLUTION) {
         // todo multiple edges at the same time?
+        // TODO depends on framerate! -> change!
         if (solution.at(current_scan).time < time) {
             const InterSatelliteLink& e = problem_instance.edges[solution.at(current_scan).edge_index];
             edge_subscene->disable(solution.at(current_scan).edge_index);
@@ -457,7 +480,9 @@ void OpenGLWidget::wheelEvent(QWheelEvent* event) {
     zoom += turned_deg * zoom_per_deg;            // if the zoom value increase -> zoom out
 }
 
-void OpenGLWidget::mousePressEvent(QMouseEvent* event) { mouse_start_location = glm::vec2(event->pos().x(), event->pos().y()); }
+void OpenGLWidget::mousePressEvent(QMouseEvent* event) {
+    mouse_start_location = glm::vec2(event->pos().x(), event->pos().y());
+}
 
 void OpenGLWidget::mouseReleaseEvent(QMouseEvent* event) {
     view *= camera_rotation;           // save rotation

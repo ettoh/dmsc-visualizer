@@ -133,6 +133,7 @@ class Satellite {
 
 // ------------------------------------------------------------------------------------------------
 
+// TODO delete
 struct Orientation {
     glm::vec3 direction = glm::vec3(0.0f);
     float start = .0f;

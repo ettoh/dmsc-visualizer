@@ -1,10 +1,10 @@
 #ifndef SOLVER_H
 #define SOLVER_H
 
-#include "scan_cover.h"
 #include "dmsc/instance.h"
 #include "dmsc/satellite.h"
-#include "dmsc/timetable.h"
+#include "dmsc/timeline.h"
+#include "scan_cover.h"
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -15,26 +15,17 @@ namespace dmsc {
 using Callback = std::function<void(float)>;
 using EdgeOrder = std::vector<int>;
 
-struct TimeSlot {
-    float start = 0.0f; // start time
-    float end = 0.0f;   // end time
-    friend bool operator<(const TimeSlot& e, const TimeSlot& f) { return e.start < f.start; }
-    TimeSlot() = default;
-    TimeSlot(const float x) {
-        start = x;
-        end = x;
-    }
-    TimeSlot(const float time_a, const float time_b) {
-        start = time_a;
-        end = time_b;
-    }
-};
-
 class Solver {
   public:
-    Solver(const PhysicalInstance& instance) : instance(PhysicalInstance(instance)) { createCache(); };
+    Solver(const PhysicalInstance& instance)
+        : instance(PhysicalInstance(instance)) {
+        createCache();
+    };
 
-    Solver(const PhysicalInstance& instance, Callback callback) : Solver(instance) { this->callback = callback; };
+    Solver(const PhysicalInstance& instance, Callback callback)
+        : Solver(instance) {
+        this->callback = callback;
+    };
 
     virtual ScanCover solve() = 0;
     float lowerBound();
@@ -67,10 +58,11 @@ class Solver {
     ScanCover evaluateEdgeOrder(const EdgeOrder& edge_order);
 
     const PhysicalInstance instance;
-    const float step_size = 1.0f;                                          // [sec]
-    std::map<const Satellite*, Orientation> satellite_orientation; // Last known orientation for each satellite
-                                                                           // and the time when it changed.
-    Callback callback = nullptr;                                           // function pointer
+    const float step_size = 1.0f; // [sec]
+    std::map<const Satellite*, TimelineEvent<glm::vec3>>
+        satellite_orientation;   // Last known orientation for each satellite
+                                 // and the time when it changed.
+    Callback callback = nullptr; // function pointer
 
   private:
     /** Calculate the time (beginning at time t0) when an edge is no longer interrupted by the central mass.
@@ -89,8 +81,10 @@ class Solver {
 
     void createCache();
 
-    Timetable<InterSatelliteLink, TimeSlot> edge_time_slots = Timetable<InterSatelliteLink, TimeSlot>();
-    std::map<const InterSatelliteLink*, float> edge_cache_progress; // max. time for which cache (for visibility) is avaiable
+    std::map<const InterSatelliteLink*, Timeline<>> edge_time_slots;
+    // Timetable<InterSatelliteLink, TimeSlot> edge_time_slots = Timetable<InterSatelliteLink, TimeSlot>();
+    std::map<const InterSatelliteLink*, float>
+        edge_cache_progress; // max. time for which cache (for visibility) is avaiable
 
     [[deprecated]] bool sphereIntersection(const InterSatelliteLink& edge, const float time);
 };

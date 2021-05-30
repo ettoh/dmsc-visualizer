@@ -148,6 +148,9 @@ PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
 
 PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
     // TODO validate input
+    // TODO loops?
+    // TODO double edges?
+    // TODO double satellites?
     cm = raw_instance.cm;
 
     // Satellites
