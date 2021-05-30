@@ -1,7 +1,7 @@
 #include "solver.h"
 #include <cmath>
 
-#include "dmsc/glm_include.h"
+#include "dmsc/glm_include.hpp"
 #include <ctime>
 #include <fstream>
 #include <random>

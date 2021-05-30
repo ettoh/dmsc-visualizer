@@ -1,4 +1,4 @@
-#include "dmsc/instance.h"
+#include "dmsc/instance.hpp"
 #include <algorithm>
 #include <ctime>
 #include <fstream>

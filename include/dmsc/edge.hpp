@@ -1,9 +1,9 @@
 #ifndef EDGE_H
 #define EDGE_H
 
-#include "dmsc/glm_include.h"
-#include "satellite.h"
-#include "timeline.h"
+#include "dmsc/glm_include.hpp"
+#include "satellite.hpp"
+#include "timeline.hpp"
 
 namespace dmsc {
 

@@ -1,8 +1,8 @@
 #ifndef INSTANCE_H
 #define INSTANCE_H
 
-#include "edge.h"
-#include "satellite.h"
+#include "edge.hpp"
+#include "satellite.hpp"
 #include <map>
 #include <string>
 #include <vector>

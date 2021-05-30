@@ -5,9 +5,9 @@
 
 #include "../solver/scan_cover.h"
 #include "opengl_primitives.h"
-#include "dmsc/glm_include.h"
-#include "dmsc/instance.h"
-#include "dmsc/timeline.h"
+#include "dmsc/glm_include.hpp"
+#include "dmsc/instance.hpp"
+#include "dmsc/timeline.hpp"
 #include <QOpenGLWidget>
 #include <chrono>
 #include <math.h>

@@ -3,7 +3,7 @@
 
 #include "../solver/scan_cover.h"
 #include "opengl_widget.h"
-#include "dmsc/instance.h"
+#include "dmsc/instance.hpp"
 #include <QMainWindow>
 #include <QProgressDialog>
 #include <QSurfaceFormat>

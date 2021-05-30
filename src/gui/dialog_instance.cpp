@@ -1,7 +1,7 @@
 #include "dialog_instance.h"
 #include "dialog_add_edges.h"
 #include "ui_dialog_instance.h"
-#include "dmsc/satellite.h"
+#include "dmsc/satellite.hpp"
 #include <QCheckBox>
 #include <QHeaderView>
 #include <QKeyEvent>

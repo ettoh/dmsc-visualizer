@@ -1,7 +1,7 @@
 #ifndef DIALOG_INSTANCE_H
 #define DIALOG_INSTANCE_H
 
-#include "dmsc/instance.h"
+#include "dmsc/instance.hpp"
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QTableWidgetItem>

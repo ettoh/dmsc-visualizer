@@ -1,9 +1,9 @@
 #ifndef SOLVER_H
 #define SOLVER_H
 
-#include "dmsc/instance.h"
-#include "dmsc/satellite.h"
-#include "dmsc/timeline.h"
+#include "dmsc/instance.hpp"
+#include "dmsc/satellite.hpp"
+#include "dmsc/timeline.hpp"
 #include "scan_cover.h"
 #include <atomic>
 #include <chrono>

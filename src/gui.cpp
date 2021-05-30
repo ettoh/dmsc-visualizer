@@ -1,4 +1,4 @@
-#include "dmsc/gui.h"
+#include "dmsc/gui.hpp"
 
 #include <glad/glad.h>
 #define GLFW_INCLUDE_NONE

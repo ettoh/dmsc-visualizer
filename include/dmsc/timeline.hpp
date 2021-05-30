@@ -1,7 +1,7 @@
 #ifndef TIMELINE_H
 #define TIMELINE_H
 
-#include "satellite.h"
+#include "satellite.hpp"
 #include <map>
 #include <set>
 

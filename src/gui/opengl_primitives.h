@@ -3,8 +3,8 @@
 
 #define _USE_MATH_DEFINES
 
-#include "dmsc/glm_include.h"
-#include "dmsc/satellite.h"
+#include "dmsc/glm_include.hpp"
+#include "dmsc/satellite.hpp"
 #include <QOpenGLFunctions_3_3_Core>
 #include <math.h>
 #include <vector>
