@@ -23,3 +23,6 @@ git submodule update
 
 ## How to use
 soon
+
+## Credits
+* *NASA - Visible Earth* (https://visibleearth.nasa.gov) - Textures used for the earth.
