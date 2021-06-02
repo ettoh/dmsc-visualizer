@@ -688,9 +688,12 @@ void OpenGLWidget::deleteInstance() {
 
 std::string OpenGLWidget::readShader(const std::string& file_name) {
     std::ifstream file(file_name);
-    if (!file)
-        throw std::runtime_error("Shader '" + file_name + "' was not found!");
-
+    if (!file){
+        printf("Failed to load shader %s\n", file_name.c_str());
+        assert(false);
+        exit(EXIT_FAILURE);
+    }
+    
     std::string shader = "";
     std::string buffer;
     while (getline(file, buffer)) {

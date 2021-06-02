@@ -19,7 +19,7 @@ git submodule update
 
 ## Third-party libraries (git submodules)
 * Dear ImGui - https://github.com/ocornut/imgui
-* stb - https://github.com/nothings/stb.git
+* stb - https://github.com/nothings/stb
 
 ## How to use
 soon

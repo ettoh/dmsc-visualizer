@@ -4,13 +4,6 @@ project(dmsc-visualizer VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Examples
-OPTION ( BUILD_SAMPLES
-  "If the examples are built as well." ON )
-if(BUILD_SAMPLES)
-    add_subdirectory(./examples)
-endif()
-
 # GLM library
 find_package(glm REQUIRED)
 
@@ -19,7 +12,28 @@ find_package(glm REQUIRED)
 find_package(glfw3 REQUIRED)
 
 add_library(dmsc STATIC)
+set_target_properties(dmsc PROPERTIES PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
+# Macro for copying resource files
+macro(copy_resources target)
+    get_target_property(source_dir dmsc PROJECT_SOURCE_DIR) # to be independent of the calling target/project
+    add_custom_command(
+        TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E remove_directory source/shader
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${source_dir}/resources/shader $<TARGET_FILE_DIR:${target}>/shader
+        COMMAND ${CMAKE_COMMAND} -E remove_directory source/textures
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${source_dir}/resources/textures $<TARGET_FILE_DIR:${target}>/textures
+        VERBATIM)
+endmacro()
+
+# Examples
+OPTION ( BUILD_SAMPLES
+  "If the examples are built as well." ON )
+if(BUILD_SAMPLES)
+    add_subdirectory(./examples)
+endif()
+
+# imgui source files
 set(imgui_files
     libs/imgui/imgui.cpp
     libs/imgui/imgui_draw.cpp
@@ -30,6 +44,7 @@ set(imgui_files
     libs/imgui/backends/imgui_impl_opengl3.cpp
 )
 
+# source files
 target_sources(dmsc
     PRIVATE
         src/visuals.cpp
