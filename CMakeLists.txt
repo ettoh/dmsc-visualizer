@@ -4,16 +4,6 @@ project(dmsc-visualizer VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Compiler
-if(UNIX)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-endif()
-
-# QT library
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-find_package(Qt5 COMPONENTS Widgets Gui REQUIRED)
-
 # Examples
 OPTION ( BUILD_SAMPLES
   "If the examples are built as well." ON )
@@ -54,13 +44,15 @@ target_include_directories(dmsc
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
         libs/imgui
-        libs/imgui/backends        
+        libs/imgui/backends    
+        libs/stb    
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(dmsc Qt5::Widgets glm::glm glfw)
+target_link_libraries(dmsc glm::glm glfw)
 
 if(UNIX)
+    set_target_properties(dmsc PROPERTIES COMPILE_FLAGS -pthread LINK_FLAGS -pthread)
     target_link_libraries(dmsc ${CMAKE_DL_LIBS})
 endif()

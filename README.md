@@ -14,17 +14,12 @@ git submodule update
 
 
 ## Not included third-party libraries
-* QT5 (support for OpenGL 3.3 core necessary)
 * OpenGL Mathematics (GLM) - can be found here: https://github.com/g-truc/glm
 * GLFW - https://github.com/glfw/glfw
 
 ## Third-party libraries (git submodules)
 * Dear ImGui - https://github.com/ocornut/imgui
-
-## Building
-###  Windows specific
-Ensure that the cmake environment variable ```QTDIR``` to the Qt root install location is set. Ensure that ```{QTDIR}/bin/windeployqt.exe``` exists.
-
+* stb - https://github.com/nothings/stb.git
 
 ## How to use
 soon

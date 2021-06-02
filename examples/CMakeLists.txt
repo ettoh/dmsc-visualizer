@@ -11,25 +11,10 @@ target_link_libraries(sample_simulation dmsc)
 add_custom_target(always ALL)
 add_custom_command(
     TARGET always POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/shaders
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/shader
     COMMAND ${CMAKE_COMMAND} -E copy_directory              
-        ${CMAKE_SOURCE_DIR}/bin/shader $<TARGET_FILE_DIR:sample_simulation>/shaders
-    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/bin
+        ${CMAKE_SOURCE_DIR}/resources/shader $<TARGET_FILE_DIR:sample_simulation>/shader
+    COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:sample_simulation>/textures
     COMMAND ${CMAKE_COMMAND} -E copy_directory              
-        ${CMAKE_SOURCE_DIR}/bin/textures $<TARGET_FILE_DIR:sample_simulation>/bin
+        ${CMAKE_SOURCE_DIR}/resources/textures $<TARGET_FILE_DIR:sample_simulation>/textures
     VERBATIM)
-
-# Windows QT dll's
-if (WIN32)
-    if(NOT DEFINED ENV{QTDIR})
-        MESSAGE(WARNING "QTDIR environment variable not set. Be sure to set the QTDIR cmake cache variable to the Qt root install location!")
-    else()
-        find_program(exec_windep windeployqt PATHS $ENV{QTDIR}/bin/)
-        if(NOT exec_windep)
-            message(WARNING "Unable to find windeployqt!")
-        endif()
-
-        add_custom_command(TARGET sample_simulation POST_BUILD 
-            COMMAND ${exec_windep} $<TARGET_FILE:sample_simulation>)
-    endif()
-endif (WIN32)

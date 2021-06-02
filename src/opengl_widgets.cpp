@@ -4,11 +4,12 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "dmsc/glm_include.hpp"
 #include <fstream>
 #include <iostream>
-
-#include <QImage> // TODO TEMPORARY
 
 namespace dmsc {
 
@@ -55,7 +56,7 @@ void OpenGLWidget::init() {
         OpenGLWidget* p = (OpenGLWidget*)glfwGetWindowUserPointer(window);
         float zoom_per_deg = .03f * p->zoom * 2.5f; // depends on current zoom value to avoid endless scrolling for
                                                     // high- and too big jumps for small zoom values
-        p->zoom += yoffset * zoom_per_deg;
+        p->zoom += static_cast<float>(yoffset) * zoom_per_deg;
     });
 
     // Mouse click event
@@ -142,11 +143,11 @@ void OpenGLWidget::init() {
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     // Read shader programs from files
-    GLuint vertex_shader = createShader("shaders/basic.vert", GL_VERTEX_SHADER);
-    GLuint fragment_shader = createShader("shaders/basic.frag", GL_FRAGMENT_SHADER);
-    GLuint earth_frag_shader = createShader("shaders/earth.frag", GL_FRAGMENT_SHADER);
-    GLuint satellite_vert_shader = createShader("shaders/satellite.vert", GL_VERTEX_SHADER);
-    GLuint earth_vert_shader = createShader("shaders/earth.vert", GL_VERTEX_SHADER);
+    GLuint vertex_shader = createShader("shader/basic.vert", GL_VERTEX_SHADER);
+    GLuint fragment_shader = createShader("shader/basic.frag", GL_FRAGMENT_SHADER);
+    GLuint earth_frag_shader = createShader("shader/earth.frag", GL_FRAGMENT_SHADER);
+    GLuint satellite_vert_shader = createShader("shader/satellite.vert", GL_VERTEX_SHADER);
+    GLuint earth_vert_shader = createShader("shader/earth.vert", GL_VERTEX_SHADER);
     basic_program = createProgram(vertex_shader, fragment_shader);
     satellite_prog = createProgram(satellite_vert_shader, fragment_shader);
     earth_prog = createProgram(earth_vert_shader, earth_frag_shader);
@@ -166,25 +167,29 @@ void OpenGLWidget::init() {
     index = glGetUniformBlockIndex(earth_prog, "Global");
     glUniformBlockBinding(earth_prog, index, 1);
 
-    // TODO load texture
-    // GLFWimage image;
-    // if (glfwReadImage("font.tga", &#8465;, GLFW_ORIGIN_UL_BIT) != GL_TRUE)
-    //     std::cout << "ERROR" << std::endl;
-
     // load textures
-    const QImage earth_texture = QImage(QString("bin/earth_day.png")).mirrored();
-    if (earth_texture.isNull()) {
-        throw std::runtime_error("Could not load earth texture!");
+    int w, h;
+    int channels;
+    unsigned char* image;
+    const char* filename = "textures/earth_day.jpg";
+    stbi_set_flip_vertically_on_load(1);
+    image = stbi_load(filename, &w, &h, &channels, STBI_rgb);
+
+    if (image == nullptr) {
+        printf("Failed to load image %s\n", filename);
+        assert(false);
+        exit(EXIT_FAILURE);
     }
 
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0,
-                 GL_RGBA, // internalformat
-                 earth_texture.width(), earth_texture.height(), 0,
-                 GL_BGRA, // target format
-                 GL_UNSIGNED_INT_8_8_8_8_REV, earth_texture.constBits());
+                 GL_RGB, // internalformat
+                 w, h, 0,
+                 GL_RGB, // target format
+                 GL_UNSIGNED_BYTE, image);
+    stbi_image_free(image);
 
     // bind texture uniform
     const char* uniform_name = "texture"; // name of uniform in shader
