@@ -27,7 +27,7 @@ macro(copy_resources target)
 endmacro()
 
 # Examples
-OPTION ( BUILD_SAMPLES
+OPTION(BUILD_SAMPLES
   "If the examples are built as well." ON )
 if(BUILD_SAMPLES)
     add_subdirectory(./examples)
@@ -35,13 +35,12 @@ endif()
 
 # imgui source files
 set(imgui_files
-    libs/imgui/imgui.cpp
-    libs/imgui/imgui_draw.cpp
-    libs/imgui/imgui_widgets.cpp
-    libs/imgui/imgui_demo.cpp
-    libs/imgui/imgui_tables.cpp
-    libs/imgui/backends/imgui_impl_glfw.cpp
-    libs/imgui/backends/imgui_impl_opengl3.cpp
+    external/imgui/imgui.cpp
+    external/imgui/imgui_draw.cpp
+    external/imgui/imgui_widgets.cpp
+    external/imgui/imgui_tables.cpp
+    external/imgui/backends/imgui_impl_glfw.cpp
+    external/imgui/backends/imgui_impl_opengl3.cpp
 )
 
 # source files
@@ -51,16 +50,17 @@ target_sources(dmsc
         src/instance.cpp
         src/opengl_widgets.cpp
         src/opengl_primitives.cpp
-        src/glad/glad.c
+        external/glad/src/glad.c
         ${imgui_files}
 )
 
 target_include_directories(dmsc
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        libs/imgui
-        libs/imgui/backends    
-        libs/stb    
+        external/imgui
+        external/imgui/backends
+        external/stb
+        external/glad/include
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )

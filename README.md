@@ -1,7 +1,10 @@
 # DMSC Visualizer
-Library to visualize and solve instances of the algorithmic *Dynamic Minimum Scan Cover* Problem.
+A library to visualize orbital movements of a satellite network in 3D using [OpenGL®](https://www.khronos.org/opengl/) 3.3.\
+Optimization algorithms to minimize the time needed to perform a set of scheduled intersatellite communications are implemented. In particular, the central mass as an obstacle and the necessary turn costs of the satellites are taken into account (algorithmic problem: *Dynamic Minimum Scan Cover*).
 
-## Cloning
+...
+
+## Download
 This repository contains submodules for external dependencies. When doing a fresh clone, make sure you clone recursively:
 ```
 git clone --recursive https://github.com/mc-thulu/dmsc-visualizer.git
@@ -12,17 +15,17 @@ git submodule init
 git submodule update
 ```
 
-
 ## Not included third-party libraries
-* OpenGL Mathematics (GLM) - can be found here: https://github.com/g-truc/glm
+* OpenGL Mathematics (GLM) - https://github.com/g-truc/glm
 * GLFW - https://github.com/glfw/glfw
 
-## Third-party libraries (git submodules)
+## Third-party libraries (included by git submodules)
 * Dear ImGui - https://github.com/ocornut/imgui
 * stb - https://github.com/nothings/stb
 
 ## How to use
-soon
+soon ...
 
-## Credits
-* *NASA - Visible Earth* (https://visibleearth.nasa.gov) - Textures used for the earth.
+## Credits / Attributions
+* The textures used for the earth are from [NASA - Visible Earth](https://visibleearth.nasa.gov)
+* OpenGL is a trademark of the [Khronos Group Inc.](http://www.khronos.org)
