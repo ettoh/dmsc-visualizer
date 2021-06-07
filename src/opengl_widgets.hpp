@@ -34,6 +34,7 @@ class OpenGLWidget {
     void drawSubscene(const OpenGLPrimitives::Subscene& subscene);
     void recalculate();
     void recalculateOrbitPositions();
+    OpenGLPrimitives::Mesh createLineMesh();
     void recalculateEdges();
     void deleteInstance();
     void pushSceneToGPU();

@@ -90,6 +90,8 @@ Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, 
     return model;
 }
 
+// ------------------------------------------------------------------------------------------------
+
 Mesh OpenGLPrimitives::createSatellite() {
     Mesh model = Mesh();
     model.gl_draw_mode = GL_TRIANGLES;
@@ -144,6 +146,8 @@ Mesh OpenGLPrimitives::createSatellite() {
     return model;
 }
 
+// ------------------------------------------------------------------------------------------------
+
 Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
     int number_of_sides = 100;
 
@@ -167,6 +171,32 @@ Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, co
     }
 
     return model;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+Mesh OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
+    Mesh m = Mesh();
+    m.gl_draw_mode = GL_LINES;
+
+    // for every colored segment we need a transparent counterpart - except the last segment
+    int colored_segments = dashed ? 15 : 1;
+    float segments = 2 * colored_segments - 1;
+    glm::vec3 distance_vector = p2 - p1;
+
+    for (float i = 0; i < colored_segments; i++) {
+        VertexData v1;
+        v1.setColor(color.r, color.g, color.b);
+        v1.setPosition(p1 + distance_vector * (i * 2 / segments));
+        m.vertices.push_back(v1);
+
+        VertexData v2;
+        v2.setColor(color.r, color.g, color.b);
+        v2.setPosition(p1 + distance_vector * ((i * 2 + 1) / segments));
+        m.vertices.push_back(v2);
+    }
+
+    return m;
 }
 
 } // namespace dmsc

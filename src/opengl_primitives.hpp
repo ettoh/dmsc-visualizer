@@ -12,10 +12,12 @@
 namespace dmsc {
 
 namespace OpenGLPrimitives {
+
 /**
  * @brief Store all the data to describe a vertex. Must not contain additional data.
  */
 struct VertexData {
+    // TODO can we use glm::vec3 here?
     float x = 0.0f, y = 0.0f, z = 0.0f;    // position
     float r = 1.0f, g = 1.0f, b = 1.0f;    // color
     float tx = 0.0f, ty = 0.0f;            // texture coord
@@ -30,10 +32,17 @@ struct VertexData {
         : x(v.x)
         , y(v.y)
         , z(v.z) {}
+
     void setColor(const float r, const float g, const float b) {
         this->r = r;
         this->g = g;
         this->b = b;
+    }
+
+    void setPosition(const glm::vec3& position) {
+        x = position.x;
+        y = position.y;
+        z = position.z;
     }
 };
 
@@ -60,6 +69,22 @@ struct Mesh {
         return 0;
     }
     bool isElementObject() const { return elements.size() != 0; }
+
+    void add(const Mesh& mesh) {
+        if (gl_draw_mode != mesh.gl_draw_mode) {
+            printf("Two meshes of unequal type cannot be merged!\n");
+            assert(false);
+            exit(EXIT_FAILURE);
+        }
+
+        for (const auto& v : mesh.vertices) {
+            vertices.push_back(v);
+        }
+
+        for (const auto& e : mesh.elements) {
+            elements.push_back(e);
+        }
+    }
 };
 
 /**
@@ -139,6 +164,11 @@ Mesh createSphere(const float radius, const glm::vec3 center, const int accuracy
  * @param position Current position of the satellite (in real world coordinates).
  */
 Mesh createSatellite();
+
+/**
+ * @brief Create list of vertices that forms a line.
+ */
+Mesh createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed = false);
 
 /**
  * @brief Create a list of vertices and colors that forms an orbit in gl.

@@ -13,15 +13,7 @@ struct EdgeOrientation {
     Orientation sat2 = Orientation();
 };
 
-struct InterSatelliteLink {
-  private:
-    const Satellite* v1;
-    const Satellite* v2;
-    float period;    // [sec] time until satellite constellations repeat
-    float max_angle; // [rad] max angle for satellites to see each other
-    bool optional;   // If true, no communication is scheduled for this edge
-    CentralMass cm;
-
+class InterSatelliteLink {
   public:
     // only defined for circular Orbits!
     InterSatelliteLink(const Satellite* v1, const Satellite* v2, const CentralMass cm, const bool optional = false)
@@ -116,6 +108,15 @@ struct InterSatelliteLink {
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
+    bool isOptional() const { return optional; }
+
+  private:
+    const Satellite* v1;
+    const Satellite* v2;
+    float period;    // [sec] time until satellite constellations repeat
+    float max_angle; // [rad] max angle for satellites to see each other
+    bool optional;   // If true, no communication is scheduled for this edge
+    CentralMass cm;
 };
 
 } // namespace dmsc

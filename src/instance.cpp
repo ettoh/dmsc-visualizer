@@ -140,7 +140,7 @@ PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
     for (const InterSatelliteLink& edge : source.edges) {
         const Satellite* new_v1 = orbit_map[&edge.getV1()];
         const Satellite* new_v2 = orbit_map[&edge.getV2()];
-        edges.emplace_back(new_v1, new_v2, cm);
+        edges.emplace_back(new_v1, new_v2, cm, edge.isOptional());
     }
 }
 
@@ -261,7 +261,7 @@ PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     for (const InterSatelliteLink& edge : source.edges) {
         const Satellite* new_v1 = orbit_map[&edge.getV1()];
         const Satellite* new_v2 = orbit_map[&edge.getV2()];
-        edges.emplace_back(new_v1, new_v2, cm);
+        edges.emplace_back(new_v1, new_v2, cm, edge.isOptional());
     }
     edges.shrink_to_fit();
 

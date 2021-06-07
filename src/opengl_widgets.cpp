@@ -307,48 +307,42 @@ void OpenGLWidget::recalculateOrbitPositions() {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::recalculateEdges() {
+Mesh OpenGLWidget::createLineMesh() {
     // build edges
     Mesh all_lines;
+    all_lines.gl_draw_mode = GL_LINES;
+
     for (int i = 0; i < problem_instance.edges.size(); i++) {
         const InterSatelliteLink& edge = problem_instance.edges.at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
-        VertexData vertex_1(sat1.x, sat1.y, sat1.z);
-        VertexData vertex_2(sat2.x, sat2.y, sat2.z);
+        glm::vec3 color = glm::vec3(1.f);
 
         if (edge.isBlocked(sim_time)) { // edge can not be scanned
-            vertex_1.setColor(1.0f, 0.0f, 0.0f);
-            vertex_2.setColor(1.0f, 0.0f, 0.0f);
+            color = glm::vec3(1.0f, 0.0f, 0.0f);
         } else { // edge can be scanned
-            vertex_1.setColor(0.0f, 1.0f, 0.0f);
-            vertex_2.setColor(0.0f, 1.0f, 0.0f);
+            color = glm::vec3(0.0f, 1.0f, 0.0f);
         }
 
         if (state == SOLUTION) {
             if (solution.at(current_scan).edge_index == i) { // edge is scanned next
-                vertex_1.setColor(1.0f, .75f, 0.0f);
-                vertex_2.setColor(1.0f, .75f, 0.0f);
+                color = glm::vec3(1.0f, .75f, 0.0f);
             } else if (edge.isBlocked(sim_time) ||
                        !edge.canAlign(satellite_orientations[&edge.getV1()].previousEvent(sim_time),
                                       satellite_orientations[&edge.getV2()].previousEvent(sim_time), sim_time)) {
 
-                vertex_1.setColor(1.0f, 0.0f, 0.0f);
-                vertex_2.setColor(1.0f, 0.0f, 0.0f);
+                color = glm::vec3(1.0f, 0.0f, 0.0f);
             } else {
-                vertex_1.setColor(0.0f, 1.0f, 0.0f);
-                vertex_2.setColor(0.0f, 1.0f, 0.0f);
+                color = glm::vec3(0.0f, 1.0f, 0.0f);
             }
         }
 
-        all_lines.vertices.push_back(vertex_1);
-        all_lines.vertices.push_back(vertex_2);
+        all_lines.add(OpenGLPrimitives::createLine(sat1, sat2, color, edge.isOptional()));
     }
 
     // build satellite orientations
     for (auto const& satellite : problem_instance.satellites) {
         glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
-
         TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&satellite].previousEvent(sim_time, false);
         TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&satellite].prevailingEvent(sim_time, false);
 
@@ -369,15 +363,16 @@ void OpenGLWidget::recalculateEdges() {
         direction_vector = glm::rotate(direction_vector, std::min(angle, dt * satellite.getRotationSpeed()),
                                        glm::cross(direction_vector, next_orientation.data));
 
-        VertexData origin(position);
-        VertexData direction(position + direction_vector * 0.025f);
-
-        origin.setColor(1.0f, 1.0f, 1.0f);
-        direction.setColor(1.0f, 1.0f, 1.0f);
-
-        all_lines.vertices.push_back(origin);
-        all_lines.vertices.push_back(direction);
+        all_lines.add(OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.f)));
     }
+
+    return all_lines;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::recalculateEdges() {
+    Mesh all_lines = createLineMesh();
 
     // push data to VBO
     if (all_lines.vertexCount() != 0) {
@@ -387,6 +382,7 @@ void OpenGLWidget::recalculateEdges() {
                      GL_STREAM_DRAW); // push data
     }
 
+    // TODO INVALID with the new edge-mesh!
     // iterate through scan cover
     if (state == SOLUTION) {
         // todo multiple edges at the same time?
@@ -440,12 +436,10 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
-    // makeCurrent();
     deleteInstance();
     state = INSTANCE;
     // copy so visualization does not depend on original instance
     problem_instance = PhysicalInstance(instance);
-    // last_frame_time = std::chrono::system_clock::now();
     sim_time = 0.f;
 
     // 0. init subscenes
@@ -493,16 +487,7 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     }
 
     // 1.2 Edges & orientations
-    // 1 line per edge + 1 line for each; 2 vertices per line
-    size_t size = 2 * (problem_instance.edges.size() + problem_instance.satellites.size());
-    for (int i = 0; i < size; i += 2) {
-        Mesh edge;
-        edge.gl_draw_mode = GL_LINES;
-        edge.elements.push_back(i);
-        edge.elements.push_back(i + 1);
-        edge_subscene.add(edge);
-    }
-
+    edge_subscene.add(createLineMesh());
     pushSceneToGPU();
 
     // 2. define format for data
@@ -688,12 +673,12 @@ void OpenGLWidget::deleteInstance() {
 
 std::string OpenGLWidget::readShader(const std::string& file_name) {
     std::ifstream file(file_name);
-    if (!file){
+    if (!file) {
         printf("Failed to load shader %s\n", file_name.c_str());
         assert(false);
         exit(EXIT_FAILURE);
     }
-    
+
     std::string shader = "";
     std::string buffer;
     while (getline(file, buffer)) {
