@@ -1,14 +1,11 @@
-#include "solver.h"
-#include <cmath>
-
+#include "dmsc/solver.hpp"
 #include "dmsc/glm_include.hpp"
+#include <cmath>
 #include <ctime>
 #include <fstream>
 #include <random>
 
 namespace dmsc {
-
-std::atomic<bool> Solver::solver_abort = false;
 
 float Solver::lowerBound() {
     float lower_bound = 0;
@@ -28,22 +25,8 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
     }
 
     // get current orientation of both satellites
-    // TODO improve? simplify? -> use invalid events (see canAlign function)
-    TimelineEvent<glm::vec3> sat1;
-    auto search = satellite_orientation.find(&edge.getV1());
-    if (search != satellite_orientation.end()) {
-        sat1 = satellite_orientation[&edge.getV1()];
-    } else {
-        sat1 = TimelineEvent<glm::vec3>(0.f, 0.f, glm::vec3(0.f));
-    }
-
-    TimelineEvent<glm::vec3> sat2;
-    search = satellite_orientation.find(&edge.getV2());
-    if (search != satellite_orientation.end()) {
-        sat2 = satellite_orientation[&edge.getV2()];
-    } else {
-        sat2 = TimelineEvent<glm::vec3>(0.f, 0.f, glm::vec3(0.f));
-    }
+    TimelineEvent<glm::vec3> sat1 = satellite_orientation[&edge.getV1()];
+    TimelineEvent<glm::vec3> sat2 = satellite_orientation[&edge.getV2()];
 
     // edge can be scanned directly?
     if (edge.canAlign(sat1, sat2, t_visible)) {
@@ -88,10 +71,6 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
 void Solver::createCache() {
     for (const auto& edge : instance.edges) {
         for (float t = 0.0f; t < edge.getPeriod(); t += step_size) {
-            // allowed to continue?
-            if (solver_abort == true)
-                throw std::runtime_error("Cache generation aborted");
-
             float t_next = findNextVisiblity(edge, t);
             if (t_next == INFINITY || t_next >= edge.getPeriod()) {
                 break;
@@ -179,56 +158,6 @@ bool Solver::sphereIntersection(const InterSatelliteLink& edge, const float time
         return false;
 
     return true;
-}
-
-ScanCover Solver::evaluateEdgeOrder(const EdgeOrder& edge_order) {
-    satellite_orientation.clear();
-    float t = 0.0f;
-    ScanCover result;
-
-    for (int i : edge_order) {
-        const InterSatelliteLink& e = instance.edges.at(i);
-        float last_change_sat1 = 0.0f;
-        float last_change_sat2 = 0.0f;
-
-        // When was the last time the satellites turned?
-        auto search = satellite_orientation.find(&e.getV1());
-        if (search != satellite_orientation.end()) {
-            last_change_sat1 = search->second.t_begin;
-        }
-
-        search = satellite_orientation.find(&e.getV2());
-        if (search != satellite_orientation.end()) {
-            last_change_sat2 = search->second.t_begin;
-        }
-
-        // Calculate time when the edge is scanned.
-        float t_min = std::max(last_change_sat1, last_change_sat2);
-        float t_next = nextCommunication(e, t_min);
-        if (t_next >= INFINITY) {
-            continue;
-        }
-        EdgeOrientation orientation = e.getOrientation(t_next);
-        result.addEdgeDialog(i, t_next, orientation);
-
-        // refresh satellite orientations
-        satellite_orientation[&e.getV1()] =
-            TimelineEvent<glm::vec3>(orientation.sat1.start, orientation.sat1.start, orientation.sat1.direction);
-        satellite_orientation[&e.getV2()] =
-            TimelineEvent<glm::vec3>(orientation.sat2.start, orientation.sat2.start, orientation.sat2.direction);
-    }
-    result.sort();
-    return result;
-}
-
-EdgeOrder Solver::toEdgeOrder(const ScanCover& scan_cover) {
-    EdgeOrder edge_order;
-    edge_order.reserve(scan_cover.size());
-
-    for (const auto& e : scan_cover) {
-        edge_order.emplace_back(e.edge_index);
-    }
-    return edge_order;
 }
 
 } // namespace dmsc

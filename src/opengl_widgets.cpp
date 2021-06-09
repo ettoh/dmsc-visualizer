@@ -229,6 +229,34 @@ void OpenGLWidget::show(const PhysicalInstance& instance) {
 
 // ------------------------------------------------------------------------------------------------
 
+void OpenGLWidget::show(const PhysicalInstance& instance, const Solution& solution) {
+    visualizeSolution(instance, solution);
+    glm::vec3 clear_color = glm::vec3(0.15f, 0.15f, 0.15f);
+
+    // Main loop
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+        buildGUI(); // Update gui
+
+        // Prepare rendering
+        ImGui::Render(); // State change
+        int display_w, display_h;
+        glfwGetFramebufferSize(window, &display_w, &display_h);
+        glViewport(0, 0, display_w, display_h);
+        glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // render new frame
+        renderScene();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // swap
+        glfwSwapBuffers(window);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
 void OpenGLWidget::renderScene() {
     recalculate();
 
@@ -307,12 +335,13 @@ void OpenGLWidget::recalculateOrbitPositions() {
 
 // ------------------------------------------------------------------------------------------------
 
-Mesh OpenGLWidget::createLineMesh() {
-    // build edges
-    Mesh all_lines;
-    all_lines.gl_draw_mode = GL_LINES;
+std::vector<Mesh> OpenGLWidget::createLines() {
+    std::vector<Mesh> all_lines;
 
+    // build edges
     for (int i = 0; i < problem_instance.edges.size(); i++) {
+        Mesh edge_line;
+        edge_line.gl_draw_mode = GL_LINES;
         const InterSatelliteLink& edge = problem_instance.edges.at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
@@ -325,7 +354,8 @@ Mesh OpenGLWidget::createLineMesh() {
         }
 
         if (state == SOLUTION) {
-            if (solution.at(current_scan).edge_index == i) { // edge is scanned next
+            uint32_t next_edge = edge_order.prevailingEvent(sim_time).data;
+            if (next_edge == i) { // edge is scanned next
                 color = glm::vec3(1.0f, .75f, 0.0f);
             } else if (edge.isBlocked(sim_time) ||
                        !edge.canAlign(satellite_orientations[&edge.getV1()].previousEvent(sim_time),
@@ -337,7 +367,8 @@ Mesh OpenGLWidget::createLineMesh() {
             }
         }
 
-        all_lines.add(OpenGLPrimitives::createLine(sat1, sat2, color, edge.isOptional()));
+        edge_line = OpenGLPrimitives::createLine(sat1, sat2, color, edge.isOptional());
+        all_lines.push_back(edge_line);
     }
 
     // build satellite orientations
@@ -363,7 +394,8 @@ Mesh OpenGLWidget::createLineMesh() {
         direction_vector = glm::rotate(direction_vector, std::min(angle, dt * satellite.getRotationSpeed()),
                                        glm::cross(direction_vector, next_orientation.data));
 
-        all_lines.add(OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.f)));
+        all_lines.push_back(
+            OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.f)));
     }
 
     return all_lines;
@@ -372,30 +404,37 @@ Mesh OpenGLWidget::createLineMesh() {
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::recalculateEdges() {
-    Mesh all_lines = createLineMesh();
+    std::vector<Mesh> line_meshes = createLines();
 
-    // push data to VBO
-    if (all_lines.vertexCount() != 0) {
-        size_t edges_size = all_lines.totalVertexSize();
-        glBindBuffer(GL_ARRAY_BUFFER, edge_subscene->vbo_dynamic); // set active
-        glBufferData(GL_ARRAY_BUFFER, edges_size, &all_lines.vertices[0],
-                     GL_STREAM_DRAW); // push data
+    // push data to gpu
+    size_t offset_vertices = 0;
+    glBindBuffer(GL_ARRAY_BUFFER, edge_subscene->vbo_dynamic);
+    glBufferData(GL_ARRAY_BUFFER, edge_subscene->totalVertexSize(), 0, GL_STREAM_DRAW); // allocate memory
+    for (const auto& model : line_meshes) {
+        size_t object_size = model.totalVertexSize(); // size of all vertices in byte
+
+        if (object_size != 0) {
+            glBufferSubData(GL_ARRAY_BUFFER, offset_vertices, object_size, &model.vertices[0]);
+            offset_vertices += object_size;
+        }
     }
-
-    // TODO INVALID with the new edge-mesh!
     // iterate through scan cover
     if (state == SOLUTION) {
-        // todo multiple edges at the same time?
-        // TODO depends on framerate! -> change!
-        if (solution.at(current_scan).time < sim_time) {
-            const InterSatelliteLink& e = problem_instance.edges[solution.at(current_scan).edge_index];
-            edge_subscene->disable(solution.at(current_scan).edge_index);
-            current_scan++;
-            std::cout << ".";
+        // hide all edges that have already been scanned
+        for (uint32_t i = 0; i < problem_instance.edges.size(); i++) {
+            auto result = scan_cover.find(i);
+            if (result == scan_cover.end()) {
+                edge_subscene->disable(i); // edge is not part of the scan cover -> hide it
+            } else {
+                float time_when_scanned = result->second;
+                if (time_when_scanned < sim_time) {
+                    edge_subscene->disable(i); // actually: diables the i-th object in subscene
+                }
+            }
         }
 
-        // end of solution
-        if (current_scan >= solution.size()) {
+        // end of solution reached
+        if (sim_time > edge_order.lastEvent().t_end) {
             state = INSTANCE;
             edge_subscene->enableAll();
             satellite_orientations.clear();
@@ -413,12 +452,16 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     size_t offset = 0;
     size_t offset_elements = 0;
     for (const Object& o : subscene.getObjects()) {
+        if (!o.enabled) {
+            offset_elements += o.number_elements;
+            offset += o.number_vertices;
+            continue;
+        }
+
         if (o.number_elements != 0) { // object is drawn by elements instead of vertices
-            if (o.enabled) {
-                assert(offset <= INT_MAX || o.number_elements <= INT_MAX);
-                glDrawElementsBaseVertex(o.gl_draw_mode, static_cast<GLint>(o.number_elements), GL_UNSIGNED_SHORT,
-                                         (void*)(offset_elements * sizeof(GLushort)), static_cast<GLint>(offset));
-            }
+            assert(offset <= INT_MAX || o.number_elements <= INT_MAX);
+            glDrawElementsBaseVertex(o.gl_draw_mode, static_cast<GLint>(o.number_elements), GL_UNSIGNED_SHORT,
+                                     (void*)(offset_elements * sizeof(GLushort)), static_cast<GLint>(offset));
 
             // skip elements and vertices of this object in the next draw call
             offset_elements += o.number_elements;
@@ -439,7 +482,7 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     deleteInstance();
     state = INSTANCE;
     // copy so visualization does not depend on original instance
-    problem_instance = PhysicalInstance(instance);
+    problem_instance = instance;
     sim_time = 0.f;
 
     // 0. init subscenes
@@ -487,7 +530,11 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     }
 
     // 1.2 Edges & orientations
-    edge_subscene.add(createLineMesh());
+    std::vector<Mesh> line_meshes = createLines();
+    for (const auto& mesh : line_meshes) {
+        edge_subscene.add(mesh);
+    }
+
     pushSceneToGPU();
 
     // 2. define format for data
@@ -536,35 +583,45 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     glEnableVertexAttribArray(1); // colors
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
     glBindVertexArray(0);
-
-    // doneCurrent();
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::visualizeSolution(const ScanCover& scan_cover) {
-    solution = ScanCover(scan_cover);
-    if (solution.size() == 0)
-        return;
-
+void OpenGLWidget::visualizeSolution(const PhysicalInstance& instance, const Solution& solution) {
+    visualizeInstance(instance);
+    scan_cover = solution.scan_cover;
+    satellite_orientations.clear();
+    edge_order.clear();
     state = SOLUTION;
-    // last_frame_time = std::chrono::system_clock::now();
     sim_time = .0f;
-    current_scan = 0;
-    if (edge_subscene != nullptr)
-        edge_subscene->enableAll();
 
-    // build timetable for satellite orientations
-    for (auto const& s : solution) {
-        const InterSatelliteLink& e = problem_instance.edges.at(s.edge_index);
+    // build timeline for satellite orientations and edge order
+    for (const auto& scan : solution.scan_cover) {
+        if (scan.first >= problem_instance.edges.size()) {
+            printf("Solution and instance does not match!\n");
+            assert(false);
+            exit(EXIT_FAILURE);
+        }
 
-        float t = s.edge_orientation.sat1.start;
-        glm::vec3 dir = s.edge_orientation.sat1.direction;
-        satellite_orientations[&e.getV1()].insert(TimelineEvent<glm::vec3>(t, t, dir));
+        float t = scan.second; // time when edge is scheduled
+        const InterSatelliteLink& isl = problem_instance.edges.at(scan.first);
+        EdgeOrientation needed_orientation = isl.getOrientation(t);
 
-        t = s.edge_orientation.sat2.start;
-        dir = s.edge_orientation.sat2.direction;
-        satellite_orientations[&e.getV2()].insert(TimelineEvent<glm::vec3>(t, t, dir));
+        // add corresponding events for both satellites where they have to face in the needed direction in order to
+        // perform the scan
+        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation.sat1.direction);
+        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, needed_orientation.sat2.direction);
+        bool res_1 = satellite_orientations[&isl.getV1()].insert(orientation_sat1);
+        bool res_2 = satellite_orientations[&isl.getV2()].insert(orientation_sat2);
+
+        if (!res_1 || !res_2) {
+            printf("The needed orientation for satellites can not be applied at t=%f!\n", t);
+        }
+
+        // fill edge order
+        if (!edge_order.insert(TimelineEvent<uint32_t>(t, t, scan.first))) {
+            printf("The edge with index %u could not be insterted into the edge order!\n", scan.first);
+        }
     }
 }
 

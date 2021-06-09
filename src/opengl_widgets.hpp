@@ -1,6 +1,6 @@
+#include "dmsc/instance.hpp"
+#include "dmsc/solver.hpp" // solution data type
 #include "opengl_primitives.hpp"
-#include "scan_cover.hpp"
-#include <dmsc/instance.hpp>
 #include <map>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,10 +21,10 @@ class OpenGLWidget {
     ~OpenGLWidget();
     OpenGLWidget(const OpenGLWidget&) = delete;
     OpenGLWidget& operator=(const OpenGLWidget&) = delete;
+    void show(const PhysicalInstance& instance);
+    void show(const PhysicalInstance& instance, const Solution& solution);
 
     enum VisualisationState { EMPTY, INSTANCE, SOLUTION };
-
-    void show(const PhysicalInstance& instance);
 
   private:
     void init();
@@ -34,7 +34,7 @@ class OpenGLWidget {
     void drawSubscene(const OpenGLPrimitives::Subscene& subscene);
     void recalculate();
     void recalculateOrbitPositions();
-    OpenGLPrimitives::Mesh createLineMesh();
+    std::vector<OpenGLPrimitives::Mesh> createLines();
     void recalculateEdges();
     void deleteInstance();
     void pushSceneToGPU();
@@ -48,7 +48,7 @@ class OpenGLWidget {
     /**
      * @brief Visualize a given solution for the current displayed instance.
      */
-    void visualizeSolution(const ScanCover& scan_cover);
+    void visualizeSolution(const PhysicalInstance& instance, const Solution& solution);
 
     /**
      * @brief Read source code for a shader from a local file.
@@ -80,7 +80,6 @@ class OpenGLWidget {
   private:
     GLFWwindow* window = nullptr;
     const float real_world_scale = 7000.0f;
-
     // Handler
     GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
     GLuint vbo_uniforms = 0;
@@ -97,16 +96,15 @@ class OpenGLWidget {
     int state = VisualisationState::EMPTY;
     PhysicalInstance problem_instance = PhysicalInstance();
     std::vector<OpenGLPrimitives::Subscene> scene;
-    // SysTime_t last_frame_time = std::chrono::system_clock::now();
     float sim_time = 0.0f;
     int sim_speed = 1;
-    bool paused = false; // if true -> the simulations is paused
+    bool paused = false; // if true, the simulations is paused
     OpenGLPrimitives::Subscene* satellite_subscene = nullptr;
     OpenGLPrimitives::Subscene* edge_subscene = nullptr;
     // solution
-    ScanCover solution = ScanCover();
-    int current_scan = 0;
     std::map<const Satellite*, Timeline<glm::vec3>> satellite_orientations;
+    ScanCover scan_cover;
+    Timeline<uint32_t> edge_order;
 };
 
 } // namespace dmsc

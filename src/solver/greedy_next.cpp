@@ -1,13 +1,14 @@
-#include "greedy_next.h"
+#include "dmsc/solver/greedy_next.hpp"
 
 namespace dmsc {
+namespace solver {
 
-ScanCover GreedyNext::solve() {
+Solution GreedyNext::solve() {
     // start time for computation time
     auto t_start = std::chrono::system_clock::now();
 
     // init variables
-    ScanCover solution = ScanCover();
+    ScanCover scan_cover;
     float curr_time = 0.0;
     satellite_orientation.clear();
 
@@ -19,14 +20,11 @@ ScanCover GreedyNext::solve() {
             remaining_edges.push_back(&e);
         }
     }
+
     size_t n_edges = remaining_edges.size();
     int finished_edges = 0;
     // choose best edge in each iteration.
     while (remaining_edges.size() > 0) {
-        // allowed to continue?
-        if (solver_abort == true)
-            return ScanCover();
-
         int best_edge_pos = 0;   // position in remaining edges
         float t_next = INFINITY; // absolute time
 
@@ -46,9 +44,6 @@ ScanCover GreedyNext::solve() {
                 break;
         }
 
-        if (callback != nullptr)
-            callback((float)++finished_edges / n_edges);
-
         // refresh orientation of chosen satellites
         // todo only recalculate needed satellites ...
         const InterSatelliteLink* e = remaining_edges.at(best_edge_pos);
@@ -61,19 +56,20 @@ ScanCover GreedyNext::solve() {
         // map position in remaining edges to position in all edges
         std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.edges[0];
         // add edge
-        solution.addEdgeDialog(static_cast<int>(edge_index), t_next, new_orientations);
+        scan_cover.insert({static_cast<uint32_t>(edge_index), t_next});
         remaining_edges.erase(remaining_edges.begin() + best_edge_pos);
         curr_time = t_next;
     }
-    solution.setLowerBound(lowerBound());
-    solution.sort();
 
     // end time for computation time
     auto t_end = std::chrono::system_clock::now();
     std::chrono::duration<float> diff = t_end - t_start;
-    solution.setComputationTime(diff.count());
 
+    Solution solution;
+    solution.computation_time = diff.count();
+    solution.scan_cover = scan_cover;
     return solution;
 }
 
+} // namespace solver
 } // namespace dmsc

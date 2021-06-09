@@ -187,6 +187,17 @@ class Timeline {
         return TimelineEvent<PayloadData>(TIMELINE_ERR, -1.f);
     }
 
+    /**
+     * @brief Returns the last event. If no events was insterted before, an invalid event is returned.
+     */
+    TimelineEvent<PayloadData> lastEvent() const {
+        if (events.size() == 0) {
+            return TimelineEvent<PayloadData>(TIMELINE_ERR, -1.f);
+        }
+
+        return *--events.end();
+    }
+
   private:
     std::set<TimelineEvent<PayloadData>> events;
 };

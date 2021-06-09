@@ -181,7 +181,7 @@ Mesh OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, cons
 
     // for every colored segment we need a transparent counterpart - except the last segment
     int colored_segments = dashed ? 15 : 1;
-    float segments = 2 * colored_segments - 1;
+    int segments = 2 * colored_segments - 1;
     glm::vec3 distance_vector = p2 - p1;
 
     for (float i = 0; i < colored_segments; i++) {

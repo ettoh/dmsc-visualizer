@@ -19,9 +19,7 @@ macro(copy_resources target)
     get_target_property(source_dir dmsc PROJECT_SOURCE_DIR) # to be independent of the calling target/project
     add_custom_command(
         TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:${target}>/shader
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${source_dir}/resources/shader $<TARGET_FILE_DIR:${target}>/shader
-        COMMAND ${CMAKE_COMMAND} -E remove_directory $<TARGET_FILE_DIR:${target}>/textures
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${source_dir}/resources/textures $<TARGET_FILE_DIR:${target}>/textures
         VERBATIM)
 endmacro()
@@ -50,6 +48,8 @@ target_sources(dmsc
         src/instance.cpp
         src/opengl_widgets.cpp
         src/opengl_primitives.cpp
+        src/solver.cpp
+        src/solver/greedy_next.cpp
         external/glad/src/glad.c
         ${imgui_files}
 )
