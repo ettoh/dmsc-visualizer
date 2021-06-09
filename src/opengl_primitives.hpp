@@ -28,6 +28,7 @@ struct VertexData {
         : x(x)
         , y(y)
         , z(z) {}
+
     VertexData(const glm::vec3& v)
         : x(v.x)
         , y(v.y)
@@ -57,17 +58,20 @@ struct Mesh {
 
     size_t elementCount() const { return elements.size(); }
     size_t vertexCount() const { return vertices.size(); }
+
     size_t totalVertexSize() const { // total size in bytes
         if (vertices.size() != 0)
             return sizeof(vertices[0]) * vertices.size();
         return 0;
     }
+
     size_t totalElementSize() const { // total size in bytes
         if (elements.size() != 0) {
             return sizeof(elements[0]) * elements.size();
         }
         return 0;
     }
+
     bool isElementObject() const { return elements.size() != 0; }
 
     void add(const Mesh& mesh) {
@@ -157,7 +161,7 @@ struct Subscene {
  * @param radius WIP
  * @param accuracy number of stacks; 1/2 number of sectors
  */
-Mesh createSphere(const float radius, const glm::vec3 center, const int accuracy);
+Mesh createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy);
 
 /**
  * @brief Create a list of elements that forms a satellite (cube) in gl.

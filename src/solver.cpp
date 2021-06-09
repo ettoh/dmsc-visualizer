@@ -93,7 +93,6 @@ float Solver::nextVisibility(const InterSatelliteLink& edge, const float t0) {
         return INFINITY;
     }
 
-    const InterSatelliteLink* p = &edge;
     float t = std::fmod(t0, edge.getPeriod());
     float n_periods = edge.getPeriod() * (int)(t0 / edge.getPeriod());
 
@@ -132,14 +131,13 @@ bool Solver::sphereIntersection(const InterSatelliteLink& edge, const float time
     glm::vec3 direction = glm::normalize(sat2 - sat1);
 
     // Parameter of sphere (Earth)
-    glm::vec3 sphere_center = glm::vec3();
+    glm::vec3 sphere_center = glm::vec3(0.0f);
     float radius_earth = 6378; // todo store in instance
 
     // Check for intersection with a sphere (earth)
     glm::vec3 distance_to_center = sat1 - sphere_center;
 
     float a = glm::dot(direction, distance_to_center);
-    float l = glm::length(distance_to_center);
     float discr = a * a - (glm::dot(distance_to_center, distance_to_center) - (radius_earth * radius_earth));
 
     // no intersection at all

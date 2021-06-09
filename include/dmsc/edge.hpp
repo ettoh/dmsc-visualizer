@@ -44,7 +44,6 @@ class InterSatelliteLink {
             double angle_sats =
                 std::acos(glm::dot(sat1, sat2) / (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
 
-            // glm::vec3
             glm::vec3 tmp = sat1 + sat2;
             if (std::abs(tmp.x) < 0.01f && std::abs(tmp.y) < 0.01f && std::abs(tmp.z) < 0.01f) {
                 angle_sats = M_PI;
@@ -61,22 +60,27 @@ class InterSatelliteLink {
      * @return True, if alignment can be performed.
      */
     // TODO rework behavior if TimelineEvent is "invalid" - what if satellite was not part of a communication before ...
-    bool canAlign(TimelineEvent<glm::vec3>& sat1, TimelineEvent<glm::vec3>& sat2, const float t) const {
+    bool canAlign(const TimelineEvent<glm::vec3>& sat1, const TimelineEvent<glm::vec3>& sat2, const float t) const {
+        // TODO rework
         EdgeOrientation target = getOrientation(t);
         float angle_sat1 = .0f;
         float angle_sat2 = .0f;
+        float time_sat1 = 0.f;
+        float time_sat2 = 0.f;
 
         // calc angle between orientations; direction vectors must be length 1
         if (sat1.isValid()) {
             angle_sat1 = std::acos(glm::dot(sat1.data, target.sat1.direction)); // [rad]
+            time_sat1 = sat1.t_begin;
         } else {
-            sat1.t_begin = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
+            time_sat1 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
         }
 
         if (sat2.isValid()) {
             angle_sat2 = std::acos(glm::dot(sat2.data, target.sat2.direction)); // [rad]
+            time_sat2 = sat1.t_begin;
         } else {
-            sat2.t_begin = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
+            time_sat2 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
         }
 
         // time needed for alignment
@@ -84,7 +88,7 @@ class InterSatelliteLink {
         float turn_time_s2 = angle_sat2 / v2->getRotationSpeed(); // [sec]
 
         // enough time?
-        if (turn_time_s1 > t - sat1.t_begin || turn_time_s2 > t - sat2.t_begin) {
+        if (turn_time_s1 > t - time_sat1 || turn_time_s2 > t - time_sat2) {
             return false;
         }
 

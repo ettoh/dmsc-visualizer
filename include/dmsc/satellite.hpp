@@ -71,7 +71,7 @@ class Satellite {
      * @return (x, y, z) coordinates
      */
     glm::vec3 cartesian_coordinates(const float time) const {
-        glm::vec3 coords;
+        glm::vec3 coords = glm::vec3(0.f);
         float current_true_anomaly = 0.0f;
         float radius = 0.0f;
 

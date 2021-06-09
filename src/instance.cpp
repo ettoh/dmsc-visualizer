@@ -51,7 +51,7 @@ Instance::Instance(const std::string& file) {
                 std::getline(ss, value_cache, ',');
                 sv.rotation_speed = std::stof(value_cache);
                 std::getline(ss, value_cache, ',');
-                float initial_true_anomaly = std::stof(value_cache);
+                sv.initial_true_anomaly = std::stof(value_cache);
                 satellites.push_back(sv);
                 break;
             }

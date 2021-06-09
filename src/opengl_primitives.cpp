@@ -4,9 +4,9 @@ namespace dmsc {
 
 using OpenGLPrimitives::Mesh;
 
-Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const int accuracy) {
-    int number_of_stacks = accuracy;
-    int number_of_sectors = accuracy * 2;
+Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy) {
+    unsigned short number_of_stacks = accuracy;
+    unsigned short number_of_sectors = accuracy * 2;
     float stack_step = static_cast<float>(M_PI) / number_of_stacks;
     float sector_step = 2.f * static_cast<float>(M_PI) / number_of_sectors;
 
@@ -63,13 +63,13 @@ Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, 
     }
 
     // define the triangles between the vertices
-    for (int i = 0; i < number_of_stacks; ++i) {      // stacks
-        for (int j = 0; j < number_of_sectors; ++j) { // sectors
+    for (unsigned short i = 0; i < number_of_stacks; ++i) {      // stacks
+        for (unsigned short j = 0; j < number_of_sectors; ++j) { // sectors
             // calculate id's from the previously defined vertices
-            int base_point = j + i * number_of_sectors + i; // x
-            int right = (base_point + 1);                   // x+1
-            int top = base_point + number_of_sectors + 1;   // x+n
-            int top_right = (top + 1);                      // x+n+1
+            unsigned short base_point = j + i * number_of_sectors + i; // x
+            unsigned short right = (base_point + 1);                   // x+1
+            unsigned short top = base_point + number_of_sectors + 1;   // x+n
+            unsigned short top_right = (top + 1);                      // x+n+1
 
             // Triangle 1 ignoring last stack
             if (i != (number_of_stacks - 1)) {
@@ -98,52 +98,6 @@ Mesh OpenGLPrimitives::createSatellite() {
     const float cube_length = 0.005f;
 
     return createSphere(0.005f, glm::vec3(0.0f), 10);
-
-    // cube
-    for (int i = 0; i < 8; i++) {
-        VertexData vertex = VertexData();
-        float x = cube_length;
-        x *= (i & 4) == 4 ? -1.0f : 1.0f;
-        // x += position.x;
-        vertex.x = x;
-        i = i << 1;
-
-        float y = cube_length;
-        y *= ((i & 4) == 4) ? -1.0f : 1.0f;
-        // y += position.y;
-        vertex.y = y;
-        i = i << 1;
-
-        float z = cube_length;
-        z *= (i & 4) == 4 ? -1.0f : 1.0f;
-        // z += position.z;
-        vertex.z = z;
-
-        vertex.r = 1.0f;
-        vertex.g = 1.0f;
-        vertex.b = 1.0f;
-
-        model.vertices.push_back(vertex);
-
-        i = i >> 2;
-    }
-
-    std::vector<GLushort> cube_elements = {// front
-                                           1, 5, 7, 1, 7, 3,
-                                           // right
-                                           5, 4, 6, 5, 6, 7,
-                                           // back
-                                           4, 0, 2, 4, 2, 6,
-                                           // left
-                                           1, 0, 2, 1, 2, 3,
-                                           // bottom
-                                           1, 0, 4, 1, 4, 5,
-                                           // top
-                                           3, 2, 6, 3, 6, 7};
-
-    model.elements = cube_elements;
-
-    return model;
 }
 
 // ------------------------------------------------------------------------------------------------

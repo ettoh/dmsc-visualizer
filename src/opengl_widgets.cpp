@@ -68,7 +68,7 @@ void OpenGLWidget::init() {
             if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
                 double xpos, ypos;
                 glfwGetCursorPos(window, &xpos, &ypos);
-                p->mouse_start_location = glm::vec2(xpos, ypos);
+                p->mouse_start_location = glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos));
             } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
                 p->view *= p->camera_rotation;        // save rotation
                 p->camera_rotation = glm::mat4(1.0f); // reset to avoid applying it twice
@@ -86,7 +86,7 @@ void OpenGLWidget::init() {
             int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
             if (state == GLFW_PRESS) {
                 glm::vec2 m1 = p->mouse_start_location;
-                glm::vec2 m2 = glm::vec2(xpos, ypos);
+                glm::vec2 m2 = glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos));
 
                 int width, height;
                 glfwGetWindowSize(window, &width, &height);
@@ -339,7 +339,7 @@ std::vector<Mesh> OpenGLWidget::createLines() {
     std::vector<Mesh> all_lines;
 
     // build edges
-    for (int i = 0; i < problem_instance.edges.size(); i++) {
+    for (uint32_t i = 0; i < problem_instance.edges.size(); i++) {
         Mesh edge_line;
         edge_line.gl_draw_mode = GL_LINES;
         const InterSatelliteLink& edge = problem_instance.edges.at(i);
@@ -395,7 +395,7 @@ std::vector<Mesh> OpenGLWidget::createLines() {
                                        glm::cross(direction_vector, next_orientation.data));
 
         all_lines.push_back(
-            OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.f)));
+            OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.0f)));
     }
 
     return all_lines;

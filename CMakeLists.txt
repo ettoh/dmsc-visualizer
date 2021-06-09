@@ -14,6 +14,16 @@ find_package(glfw3 REQUIRED)
 add_library(dmsc STATIC)
 set_target_properties(dmsc PROPERTIES PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
+# Debug flags
+if(MSVC)
+  target_compile_options(dmsc PRIVATE /W4 
+    /wd4458 # declaration of 'identifier' hides class member
+    /wd4100 # 'identifier' : unreferenced formal parameter
+    )
+else()
+  target_compile_options(dmsc PRIVATE -Wall -Wextra -pedantic)
+endif()
+
 # Macro for copying resource files
 macro(copy_resources target)
     get_target_property(source_dir dmsc PROJECT_SOURCE_DIR) # to be independent of the calling target/project

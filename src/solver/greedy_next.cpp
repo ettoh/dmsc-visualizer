@@ -21,8 +21,6 @@ Solution GreedyNext::solve() {
         }
     }
 
-    size_t n_edges = remaining_edges.size();
-    int finished_edges = 0;
     // choose best edge in each iteration.
     while (remaining_edges.size() > 0) {
         int best_edge_pos = 0;   // position in remaining edges
