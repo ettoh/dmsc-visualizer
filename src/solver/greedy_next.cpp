@@ -12,11 +12,11 @@ Solution GreedyNext::solve() {
     float curr_time = 0.0;
     satellite_orientation.clear();
 
-    // Prepare edges for computation
+    // select edges for computation
     std::vector<const InterSatelliteLink*> remaining_edges;
     for (const InterSatelliteLink& e : instance.edges) {
         float t_communication = nextCommunication(e, 0.0f);
-        if (t_communication < INFINITY) {
+        if (t_communication < INFINITY && !e.isOptional()) {
             remaining_edges.push_back(&e);
         }
     }

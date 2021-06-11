@@ -19,9 +19,9 @@ int main() {
     instance.satellites.push_back(sv); // satellite 2
 
     // 2. schedule communications between satellites
-    instance.edges.push_back(dmsc::Edge(0, 1));       // communication between sat 0 and sat 1
-    instance.edges.push_back(dmsc::Edge(0, 2, true)); // optional communication between sat 0 and sat 2
-    instance.edges.push_back(dmsc::Edge(1, 2, true)); // optional communication between sat 1 and sat 2
+    instance.edges.push_back(dmsc::Edge(0, 1)); // communication between sat 0 and sat 1
+    instance.edges.push_back(dmsc::Edge(0, 2)); // communication between sat 0 and sat 2
+    instance.edges.push_back(dmsc::Edge(1, 2)); // communication between sat 1 and sat 2
 
     // 3. solve the instance
     GreedyNext solver = GreedyNext(dmsc::PhysicalInstance(instance));
