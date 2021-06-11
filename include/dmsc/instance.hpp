@@ -1,5 +1,5 @@
-#ifndef INSTANCE_H
-#define INSTANCE_H
+#ifndef DMSC_INSTANCE_H
+#define DMSC_INSTANCE_H
 
 #include "edge.hpp"
 #include "satellite.hpp"

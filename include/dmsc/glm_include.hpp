@@ -1,5 +1,5 @@
-#ifndef GLM_INCLUDE_H
-#define GLM_INCLUDE_H
+#ifndef DMSC_GLM_INCLUDE_H
+#define DMSC_GLM_INCLUDE_H
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>

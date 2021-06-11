@@ -1,5 +1,5 @@
-#ifndef EDGE_H
-#define EDGE_H
+#ifndef DMSC_EDGE_H
+#define DMSC_EDGE_H
 
 #include "dmsc/glm_include.hpp"
 #include "satellite.hpp"

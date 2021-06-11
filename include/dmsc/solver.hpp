@@ -1,5 +1,5 @@
-#ifndef SOLVER_H
-#define SOLVER_H
+#ifndef DMSC_SOLVER_H
+#define DMSC_SOLVER_H
 
 #include "instance.hpp"
 #include "satellite.hpp"

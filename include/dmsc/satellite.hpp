@@ -1,5 +1,5 @@
-#ifndef ORBIT_H
-#define ORBIT_H
+#ifndef DMSC_ORBIT_H
+#define DMSC_ORBIT_H
 
 #define _USE_MATH_DEFINES
 #include "dmsc/glm_include.hpp"

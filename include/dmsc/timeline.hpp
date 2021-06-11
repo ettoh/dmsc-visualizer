@@ -1,5 +1,5 @@
-#ifndef TIMELINE_H
-#define TIMELINE_H
+#ifndef DMSC_TIMELINE_H
+#define DMSC_TIMELINE_H
 
 #include "satellite.hpp"
 #include <map>
@@ -204,4 +204,4 @@ class Timeline {
 
 } // namespace dmsc
 
-#endif // !TIMELINE_H
+#endif

@@ -1,5 +1,5 @@
-#ifndef GREEDY_NEXT_H
-#define GREEDY_NEXT_H
+#ifndef DMSC_GREEDY_NEXT_H
+#define DMSC_GREEDY_NEXT_H
 
 #include "../solver.hpp"
 
