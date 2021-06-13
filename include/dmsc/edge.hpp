@@ -4,6 +4,7 @@
 #include "dmsc/glm_include.hpp"
 #include "satellite.hpp"
 #include "timeline.hpp"
+#include <vector>
 
 namespace dmsc {
 
@@ -16,12 +17,21 @@ struct EdgeOrientation {
 class InterSatelliteLink {
   public:
     // only defined for circular Orbits!
-    InterSatelliteLink(const Satellite* v1, const Satellite* v2, const CentralMass cm, const bool optional = false)
-        : v1{v1}
-        , v2{v2}
+    InterSatelliteLink(const uint32_t& sat_from, const uint32_t& sat_to, const std::vector<Satellite>& satellites,
+                       const CentralMass cm, const bool optional = false)
+        : sat_from(sat_from)
+        , sat_to(sat_to)
         , cm(cm)
         , optional(optional) {
 
+        if (sat_from >= satellites.size() || sat_to >= satellites.size()) {
+            printf("There is no such satellite in given vector!\n");
+            assert(false);
+            exit(EXIT_FAILURE);
+        }
+
+        v1 = &satellites[sat_from];
+        v2 = &satellites[sat_to];
         period = v1->getPeriod();
         if (v1->getSemiMajorAxis() != v2->getSemiMajorAxis()) {
             period = v1->getPeriod() * v2->getPeriod(); // [sec]
@@ -111,16 +121,22 @@ class InterSatelliteLink {
         return result;
     }
 
+    bool isOptional() const { return optional; }
+
+    // GETTER
     float getPeriod() const { return period; }
     float getMaxAngle() const { return max_angle; }
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
+    const uint32_t getFromIdx() const { return sat_from; }
+    const uint32_t getToIdx() const { return sat_to; }
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
-    bool isOptional() const { return optional; }
 
   private:
     const Satellite* v1;
     const Satellite* v2;
+    uint32_t sat_from;
+    uint32_t sat_to;
     float period;    // [sec] time until satellite constellations repeat
     float max_angle; // [rad] max angle for satellites to see each other
     bool optional;   // If true, no communication is scheduled for this edge

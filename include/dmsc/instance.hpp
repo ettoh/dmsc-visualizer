@@ -9,8 +9,6 @@
 
 namespace dmsc {
 
-using AdjacentList = std::vector<int>;
-
 // ------------------------------------------------------------------------------------------------
 
 /**
@@ -58,37 +56,29 @@ struct Instance {
 
 // ------------------------------------------------------------------------------------------------
 
-struct LineGraph {
-    std::vector<AdjacentList> edges;
-};
-
-// ------------------------------------------------------------------------------------------------
-
+/**
+ * @brief TODO
+ *
+ */
 class PhysicalInstance {
+  public:
+    PhysicalInstance() = default;
+    PhysicalInstance(const Instance& raw_instance);
+    PhysicalInstance(const PhysicalInstance& source); // Copy
+    PhysicalInstance& operator=(const PhysicalInstance& source);
+
+    void removeInvalidEdges();
+
+    // GETTER
+    float getRadiusCentralMass() const { return cm.radius_central_mass; }
+    const std::vector<Satellite>& getSatellites() const { return satellites; }
+    const std::vector<InterSatelliteLink>& getEdges() const { return edges; }
+
   private:
     CentralMass cm;
     enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
-
-  public:
     std::vector<Satellite> satellites;
     std::vector<InterSatelliteLink> edges;
-
-    PhysicalInstance() = default;
-    /**
-     * @param gravitational_parameter [km^3 / s^2]
-     * @param radius_central_mass [km]
-     */
-    PhysicalInstance(const CentralMass& cm)
-        : cm(cm) {}
-    PhysicalInstance(const Instance& raw_instance);
-    PhysicalInstance(const PhysicalInstance& source); // Copy
-    PhysicalInstance(const std::string& file);
-    PhysicalInstance& operator=(const PhysicalInstance& source);
-
-    float getRadiusCentralMass() const { return cm.radius_central_mass; }
-    void removeInvalidEdges();
-    LineGraph lineGraph() const;
-    bool save(const std::string& file) const;
 };
 
 // ------------------------------------------------------------------------------------------------

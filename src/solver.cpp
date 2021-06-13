@@ -9,7 +9,7 @@ namespace dmsc {
 
 float Solver::lowerBound() {
     float lower_bound = 0;
-    for (const InterSatelliteLink& e : instance.edges) {
+    for (const InterSatelliteLink& e : instance.getEdges()) {
         float t = nextVisibility(e, 0.0);
         if (t > lower_bound && t < INFINITY)
             lower_bound = t;
@@ -69,7 +69,7 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
 }
 
 void Solver::createCache() {
-    for (const auto& edge : instance.edges) {
+    for (const auto& edge : instance.getEdges()) {
         for (float t = 0.0f; t < edge.getPeriod(); t += step_size) {
             float t_next = findNextVisiblity(edge, t);
             if (t_next == INFINITY || t_next >= edge.getPeriod()) {

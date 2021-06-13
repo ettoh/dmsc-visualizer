@@ -314,10 +314,10 @@ void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
     std::vector<GLfloat> positions;
     size_t nmbr_vertecies = 0;
-    if (problem_instance.satellites.size() != 0) // size() will fail if no orbits in instance
+    if (problem_instance.getSatellites().size() != 0) // size() will fail if no orbits in instance
         // assume that all satellites have the same amount of vertices
         nmbr_vertecies = satellite_subscene->getObjects().at(0).number_vertices;
-    for (const Satellite& o : problem_instance.satellites) {
+    for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 offset = o.cartesian_coordinates(sim_time) / real_world_scale;
         for (int i = 0; i < nmbr_vertecies; i++) {
             positions.push_back(offset.x);
@@ -340,10 +340,10 @@ std::vector<Mesh> OpenGLWidget::createLines() {
     std::vector<Mesh> all_lines;
 
     // build edges
-    for (uint32_t i = 0; i < problem_instance.edges.size(); i++) {
+    for (uint32_t i = 0; i < problem_instance.getEdges().size(); i++) {
         Mesh edge_line;
         edge_line.gl_draw_mode = GL_LINES;
-        const InterSatelliteLink& edge = problem_instance.edges.at(i);
+        const InterSatelliteLink& edge = problem_instance.getEdges().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 color = glm::vec3(1.f);
@@ -373,7 +373,7 @@ std::vector<Mesh> OpenGLWidget::createLines() {
     }
 
     // build satellite orientations
-    for (auto const& satellite : problem_instance.satellites) {
+    for (auto const& satellite : problem_instance.getSatellites()) {
         glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
         TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&satellite].previousEvent(sim_time, false);
         TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&satellite].prevailingEvent(sim_time, false);
@@ -422,7 +422,7 @@ void OpenGLWidget::recalculateEdges() {
     // iterate through scan cover
     if (state == SOLUTION) {
         // hide all edges that have already been scanned
-        for (uint32_t i = 0; i < problem_instance.edges.size(); i++) {
+        for (uint32_t i = 0; i < problem_instance.getEdges().size(); i++) {
             auto result = scan_cover.find(i);
             if (result == scan_cover.end()) {
                 edge_subscene->disable(i); // edge is not part of the scan cover -> hide it
@@ -520,7 +520,7 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     Mesh sphere =
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
-    for (const Satellite& o : problem_instance.satellites) {
+    for (const Satellite& o : problem_instance.getSatellites()) {
         // Orbit
         Mesh orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
         static_subscene.add(orbit);
@@ -598,14 +598,14 @@ void OpenGLWidget::visualizeSolution(const PhysicalInstance& instance, const Sol
 
     // build timeline for satellite orientations and edge order
     for (const auto& scan : solution.scan_cover) {
-        if (scan.first >= problem_instance.edges.size()) {
+        if (scan.first >= problem_instance.getEdges().size()) {
             printf("Solution and instance does not match!\n");
             assert(false);
             exit(EXIT_FAILURE);
         }
 
         float t = scan.second; // time when edge is scheduled
-        const InterSatelliteLink& isl = problem_instance.edges.at(scan.first);
+        const InterSatelliteLink& isl = problem_instance.getEdges().at(scan.first);
         EdgeOrientation needed_orientation = isl.getOrientation(t);
 
         // add corresponding events for both satellites where they have to face in the needed direction in order to
