@@ -5,14 +5,14 @@
 
 namespace dmsc {
 
-void visualizeInstance(const Instance& instance) { visualizeInstance(PhysicalInstance(instance)); }
+void visualizeInstance(const Instance& instance, const float t0) { visualizeInstance(PhysicalInstance(instance), t0); }
 
 // ------------------------------------------------------------------------------------------------
 
-void visualizeInstance(const PhysicalInstance& instance) {
+void visualizeInstance(const PhysicalInstance& instance, const float t0) {
     // TODO new thread?
     OpenGLWidget gl;
-    gl.show(instance);
+    gl.show(instance, t0);
 }
 
 // ------------------------------------------------------------------------------------------------

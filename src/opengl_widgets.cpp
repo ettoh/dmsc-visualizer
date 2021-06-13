@@ -201,8 +201,9 @@ void OpenGLWidget::init() {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::show(const PhysicalInstance& instance) {
+void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) {
     visualizeInstance(instance);
+    sim_time = t0;
     glm::vec3 clear_color = glm::vec3(0.15f, 0.15f, 0.15f);
 
     // Main loop

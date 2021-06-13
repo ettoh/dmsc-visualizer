@@ -21,7 +21,7 @@ class OpenGLWidget {
     ~OpenGLWidget();
     OpenGLWidget(const OpenGLWidget&) = delete;
     OpenGLWidget& operator=(const OpenGLWidget&) = delete;
-    void show(const PhysicalInstance& instance);
+    void show(const PhysicalInstance& instance, const float t0 = 0.f);
     void show(const PhysicalInstance& instance, const Solution& solution);
 
     enum VisualisationState { EMPTY, INSTANCE, SOLUTION };
