@@ -90,7 +90,7 @@ class OpenGLWidget {
     glm::vec2 mouse_start_location = glm::vec2(0.0f);
     glm::mat4 projection = glm::perspective(45.0f, 1.0f * 1280 / 720, 0.1f, 10.0f);
     glm::mat4 camera_rotation = glm::mat4(1.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
                                  glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
     // scene
     int state = VisualisationState::EMPTY;

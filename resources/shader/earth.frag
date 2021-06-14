@@ -7,7 +7,7 @@ layout (std140) uniform Global{	mat4 modelview; mat4 projection; mat4 normal_tra
 
 void main(void) {
     float ambient = 0.09;
-    vec3 light_source = (modelview * vec4(0.0, 0.0, -4.0, 1.0)).xyz;
+    vec3 light_source = (modelview * vec4(0.0, 0.0, 4.0, 1.0)).xyz;
     vec3 N = normalize((normal_transform * vec4(f_normal, 1.0)).xyz);
     vec3 L = normalize(light_source - f_coord3d); // light source
     vec3 V = normalize(-f_coord3d); // view
