@@ -438,13 +438,6 @@ void OpenGLWidget::recalculateEdges() {
                 }
             }
         }
-
-        // end of solution reached
-        if (sim_time > edge_order.lastEvent().t_end) {
-            state = INSTANCE;
-            edge_subscene->enableAll();
-            satellite_orientations.clear();
-        }
     }
 }
 
@@ -686,6 +679,7 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::Button("Restart")) {
             sim_time = 0.f;
             sim_speed = 1;
+            edge_subscene->enableAll();
         }
 
         ImGui::InputInt("Speed", &sim_speed);
