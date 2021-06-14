@@ -423,12 +423,17 @@ void OpenGLWidget::recalculateEdges() {
     if (state == SOLUTION) {
         // hide all edges that have already been scanned
         for (uint32_t i = 0; i < problem_instance.getEdges().size(); i++) {
-            auto result = scan_cover.find(i);
-            if (result == scan_cover.end()) {
+            auto range = scan_cover.equal_range(i);
+            if (range.first == scan_cover.end()) {
                 edge_subscene->disable(i); // edge is not part of the scan cover -> hide it
             } else {
-                float time_when_scanned = result->second;
-                if (time_when_scanned < sim_time) {
+                float latest_use = 0.f;
+                for (auto it = range.first; it != range.second; ++it) {
+                    latest_use = std::max(latest_use, it->second);
+                }
+
+                // edge will not be part of a communication anymore
+                if (latest_use < sim_time) {
                     edge_subscene->disable(i); // actually: diables the i-th object in subscene
                 }
             }

@@ -9,7 +9,7 @@
 
 namespace dmsc {
 
-using ScanCover = std::map<uint32_t, float>; // when an edge is scanned - time in [sec]
+using ScanCover = std::multimap<uint32_t, float>; // when an edge is scanned - time in [sec]
 
 struct Solution {
     float computation_time = 0.f; // [sec]
@@ -24,7 +24,7 @@ using EdgeOrder = std::vector<int>;
 class Solver {
   public:
     Solver(const PhysicalInstance& instance)
-        : instance(PhysicalInstance(instance)) {
+        : instance(instance) {
         createCache();
     };
 
@@ -47,15 +47,6 @@ class Solver {
      * @return Absolute time in [sec] for next visibility. INFINITY if the edge will never be visible.
      */
     float nextVisibility(const InterSatelliteLink& edge, const float t0);
-
-    /**
-     * @brief
-     * @param scan_cover A sorted scan cover.
-     * @return
-     */
-    EdgeOrder toEdgeOrder(const ScanCover& scan_cover);
-
-    ScanCover evaluateEdgeOrder(const EdgeOrder& edge_order);
 
     const PhysicalInstance instance;
     const float step_size = 1.0f; // [sec]

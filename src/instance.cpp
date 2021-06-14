@@ -9,6 +9,52 @@
 
 namespace dmsc {
 
+// ========================
+// = Adjacency matrix
+// ========================
+
+AdjacencyMatrix::AdjacencyMatrix(const size_t size, const Item& default_value) {
+    matrix.reserve(size);
+    matrix.assign(size, std::vector<Item>());
+    for (auto& list : matrix) {
+        list.reserve(size);
+        list.assign(size, default_value);
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void AdjacencyMatrix::clear() {
+    size_t size = matrix.capacity();
+    matrix.clear();
+    matrix.assign(size, std::vector<Item>());
+    for (auto& list : matrix) {
+        list.reserve(size);
+        list.assign(size, Item());
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::vector<AdjacencyMatrix::Item> AdjacencyMatrix::column(const size_t column) const {
+    std::vector<Item> result;
+    result.reserve(matrix.size());
+    for (int i = 0; i < matrix.size(); i++) {
+        result.push_back(matrix[i][column]);
+    }
+    return result;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::vector<AdjacencyMatrix::Item> AdjacencyMatrix::row(const size_t row) const { return matrix[row]; }
+
+// ------------------------------------------------------------------------------------------------
+
+// ========================
+// = Instance
+// ========================
+
 Instance::Instance(const std::string& file) {
     std::string line_cache = "";
     int mode = READ_INIT;
@@ -125,6 +171,10 @@ void Instance::save(const std::string& file) const {
 
 // ------------------------------------------------------------------------------------------------
 
+// ========================
+// = Physical Instance
+// ========================
+
 PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
     cm.radius_central_mass = source.cm.radius_central_mass;
     cm.gravitational_parameter = source.cm.gravitational_parameter;
@@ -134,8 +184,10 @@ PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
 
     // edges must point to the new orbit objects
     for (const InterSatelliteLink& edge : source.edges) {
-        edges.push_back(InterSatelliteLink(edge.getFromIdx(), edge.getToIdx(), satellites, cm, edge.isOptional()));
+        edges.push_back(InterSatelliteLink(edge.getV1Idx(), edge.getV2Idx(), satellites, cm, edge.isOptional()));
     }
+
+    adjacency_matrix = source.adjacency_matrix;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -161,6 +213,21 @@ PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
 
         edges.push_back(InterSatelliteLink(e.from_idx, e.to_idx, satellites, cm, e.optional));
     }
+
+    buildAdjacencyMatrix();
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void PhysicalInstance::buildAdjacencyMatrix() {
+    adjacency_matrix = AdjacencyMatrix(edges.size(), AdjacencyMatrix::Item(0u, ~0u));
+
+    // fill matrix
+    for (uint32_t edge_idx = 0; edge_idx < edges.size(); edge_idx++) {
+        const InterSatelliteLink& isl = edges[edge_idx];
+        adjacency_matrix.matrix[isl.getV1Idx()][isl.getV2Idx()] = AdjacencyMatrix::Item(1u, edge_idx);
+        adjacency_matrix.matrix[isl.getV2Idx()][isl.getV1Idx()] = AdjacencyMatrix::Item(1u, edge_idx);
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -180,7 +247,7 @@ PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     // edges must point to the new orbit objects
     edges.clear();
     for (const InterSatelliteLink& edge : source.edges) {
-        edges.push_back(InterSatelliteLink(edge.getFromIdx(), edge.getToIdx(), satellites, cm, edge.isOptional()));
+        edges.push_back(InterSatelliteLink(edge.getV1Idx(), edge.getV2Idx(), satellites, cm, edge.isOptional()));
     }
     edges.shrink_to_fit();
 

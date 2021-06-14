@@ -17,21 +17,21 @@ struct EdgeOrientation {
 class InterSatelliteLink {
   public:
     // only defined for circular Orbits!
-    InterSatelliteLink(const uint32_t& sat_from, const uint32_t& sat_to, const std::vector<Satellite>& satellites,
+    InterSatelliteLink(const uint32_t& v1_idx, const uint32_t& v2_idx, const std::vector<Satellite>& satellites,
                        const CentralMass cm, const bool optional = false)
-        : sat_from(sat_from)
-        , sat_to(sat_to)
+        : v1_idx(v1_idx)
+        , v2_idx(v2_idx)
         , cm(cm)
         , optional(optional) {
 
-        if (sat_from >= satellites.size() || sat_to >= satellites.size()) {
+        if (v1_idx >= satellites.size() || v2_idx >= satellites.size()) {
             printf("There is no such satellite in given vector!\n");
             assert(false);
             exit(EXIT_FAILURE);
         }
 
-        v1 = &satellites[sat_from];
-        v2 = &satellites[sat_to];
+        v1 = &satellites[v1_idx];
+        v2 = &satellites[v2_idx];
         period = v1->getPeriod();
         if (v1->getSemiMajorAxis() != v2->getSemiMajorAxis()) {
             period = v1->getPeriod() * v2->getPeriod(); // [sec]
@@ -88,7 +88,7 @@ class InterSatelliteLink {
 
         if (sat2.isValid()) {
             angle_sat2 = std::acos(glm::dot(sat2.data, target.sat2.direction)); // [rad]
-            time_sat2 = sat1.t_begin;
+            time_sat2 = sat2.t_begin;
         } else {
             time_sat2 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
         }
@@ -128,15 +128,15 @@ class InterSatelliteLink {
     float getMaxAngle() const { return max_angle; }
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
-    const uint32_t getFromIdx() const { return sat_from; }
-    const uint32_t getToIdx() const { return sat_to; }
+    const uint32_t getV1Idx() const { return v1_idx; }
+    const uint32_t getV2Idx() const { return v2_idx; }
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
 
   private:
     const Satellite* v1;
     const Satellite* v2;
-    uint32_t sat_from;
-    uint32_t sat_to;
+    uint32_t v1_idx;
+    uint32_t v2_idx;
     float period;    // [sec] time until satellite constellations repeat
     float max_angle; // [rad] max angle for satellites to see each other
     bool optional;   // If true, no communication is scheduled for this edge

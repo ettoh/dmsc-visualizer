@@ -9,6 +9,33 @@
 
 namespace dmsc {
 
+/**
+ * @brief TODO
+ *
+ */
+class AdjacencyMatrix {
+  public:
+    struct Item {
+        uint32_t weight = ~0u;
+        uint32_t edge_idx = ~0u; // index of isl-object in physical instance
+        Item() = default;
+        Item(const uint32_t weight, const uint32_t edge_idx)
+            : weight(weight)
+            , edge_idx(edge_idx) {}
+    };
+
+    AdjacencyMatrix() = delete;
+    AdjacencyMatrix(const size_t size, const Item& default_value = Item());
+
+    std::vector<std::vector<Item>> matrix;
+
+    void clear();
+
+    // GETTER
+    std::vector<Item> column(const size_t column) const;
+    std::vector<Item> row(const size_t row) const;
+};
+
 // ------------------------------------------------------------------------------------------------
 
 /**
@@ -73,12 +100,18 @@ class PhysicalInstance {
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
     const std::vector<Satellite>& getSatellites() const { return satellites; }
     const std::vector<InterSatelliteLink>& getEdges() const { return edges; }
+    const AdjacencyMatrix& getAdjacencyMatrix() const { return adjacency_matrix; }
+    const size_t edgeSize() const { return edges.size(); }
+    const size_t satelliteSize() const { return satellites.size(); }
 
   private:
-    CentralMass cm;
-    enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
     std::vector<Satellite> satellites;
     std::vector<InterSatelliteLink> edges;
+    CentralMass cm;
+    AdjacencyMatrix adjacency_matrix = AdjacencyMatrix(0);
+    enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
+
+    void buildAdjacencyMatrix();
 };
 
 // ------------------------------------------------------------------------------------------------

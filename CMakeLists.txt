@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.0)
+cmake_minimum_required(VERSION 3.13.0)
 project(dmsc-visualizer VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -8,7 +8,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(glm REQUIRED)
 
 # GLFW library
-# TODO not found -> local path
 find_package(glfw3 REQUIRED)
 
 add_library(dmsc STATIC)
@@ -16,10 +15,11 @@ set_target_properties(dmsc PROPERTIES PROJECT_SOURCE_DIR ${PROJECT_SOURCE_DIR})
 
 # Debug flags
 if(MSVC)
-  target_compile_options(dmsc PRIVATE /W4 
-    /wd4458 # declaration of 'identifier' hides class member
-    /wd4100 # 'identifier' : unreferenced formal parameter
+    target_compile_options(dmsc PRIVATE /W4
+        /wd4458 # declaration of 'identifier' hides class member
+        /wd4100 # 'identifier' : unreferenced formal parameter
     )
+    target_link_options(dmsc PUBLIC /NODEFAULTLIB:MSVCRT)
 else()
   target_compile_options(dmsc PRIVATE -Wall -Wextra -pedantic)
 endif()
@@ -36,19 +36,27 @@ endmacro()
 
 # Examples
 OPTION(BUILD_SAMPLES
-  "If the examples are built as well." ON )
+    "If the examples are built as well." ON)
 if(BUILD_SAMPLES)
     add_subdirectory(./examples)
 endif()
 
-# imgui source files
-set(imgui_files
+# external source files
+set(external_files
     external/imgui/imgui.cpp
     external/imgui/imgui_draw.cpp
     external/imgui/imgui_widgets.cpp
     external/imgui/imgui_tables.cpp
     external/imgui/backends/imgui_impl_glfw.cpp
     external/imgui/backends/imgui_impl_opengl3.cpp
+    external/glad/src/glad.c
+)
+
+# solver source files
+set(solver_files
+    src/solver.cpp
+    src/solver/greedy_next.cpp
+    src/solver/greedy_next_khop.cpp
 )
 
 # source files
@@ -57,11 +65,9 @@ target_sources(dmsc
         src/visuals.cpp
         src/instance.cpp
         src/opengl_widgets.cpp
-        src/opengl_primitives.cpp
-        src/solver.cpp
-        src/solver/greedy_next.cpp
-        external/glad/src/glad.c
-        ${imgui_files}
+        src/opengl_primitives.cpp        
+        ${solver_files}
+        ${external_files}
 )
 
 target_include_directories(dmsc
