@@ -124,38 +124,4 @@ float Solver::findLastVisible(const InterSatelliteLink& edge, const float t0) co
     return INFINITY;
 }
 
-bool Solver::sphereIntersection(const InterSatelliteLink& edge, const float time) {
-    // represent edge as a unit vector with origin at one of the satellites
-    glm::vec3 sat1 = edge.getV1().cartesian_coordinates(time);
-    glm::vec3 sat2 = edge.getV2().cartesian_coordinates(time);
-    glm::vec3 direction = glm::normalize(sat2 - sat1);
-
-    // Parameter of sphere (Earth)
-    glm::vec3 sphere_center = glm::vec3(0.0f);
-    float radius_earth = 6378; // todo store in instance
-
-    // Check for intersection with a sphere (earth)
-    glm::vec3 distance_to_center = sat1 - sphere_center;
-
-    float a = glm::dot(direction, distance_to_center);
-    float discr = a * a - (glm::dot(distance_to_center, distance_to_center) - (radius_earth * radius_earth));
-
-    // no intersection at all
-    if (discr <= 0.0)
-        return false;
-
-    // intersection in opposite direction? => d1 and d2 negative
-    float d1 = -a + sqrt(discr);
-    float d2 = -a - sqrt(discr);
-    if (d1 < 0.0 && d2 < 0.0)
-        return false;
-
-    // intersection after the ray hit the second satellite
-    float dist_between_sat = glm::length(sat1 - sat2);
-    if (d1 >= dist_between_sat && d2 >= dist_between_sat)
-        return false;
-
-    return true;
-}
-
 } // namespace dmsc

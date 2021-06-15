@@ -17,34 +17,14 @@ namespace OpenGLPrimitives {
  * @brief Store all the data to describe a vertex. Must not contain additional data.
  */
 struct VertexData {
-    // TODO can we use glm::vec3 here?
-    float x = 0.0f, y = 0.0f, z = 0.0f;    // position
-    float r = 1.0f, g = 1.0f, b = 1.0f;    // color
-    float tx = 0.0f, ty = 0.0f;            // texture coord
-    float nx = 0.0f, ny = 0.0f, nz = 0.0f; // normal
+    glm::vec3 position = glm::vec3(0.f);
+    glm::vec3 color = glm::vec3(0.f);
+    glm::vec2 texture = glm::vec2(0.f);
+    glm::vec3 normal = glm::vec3(0.f);
 
     VertexData() = default;
-    VertexData(const float x, const float y, const float z)
-        : x(x)
-        , y(y)
-        , z(z) {}
-
-    VertexData(const glm::vec3& v)
-        : x(v.x)
-        , y(v.y)
-        , z(v.z) {}
-
-    void setColor(const float r, const float g, const float b) {
-        this->r = r;
-        this->g = g;
-        this->b = b;
-    }
-
-    void setPosition(const glm::vec3& position) {
-        x = position.x;
-        y = position.y;
-        z = position.z;
-    }
+    VertexData(const float x, const float y, const float z) { position = glm::vec3(x, y, z); }
+    VertexData(const glm::vec3& v) { position = v; }
 };
 
 /**
@@ -54,7 +34,7 @@ struct VertexData {
 struct Mesh {
     std::vector<VertexData> vertices;
     std::vector<unsigned short> elements;
-    float gl_draw_mode = GL_TRIANGLES;
+    GLenum gl_draw_mode = GL_TRIANGLES;
 
     size_t elementCount() const { return elements.size(); }
     size_t vertexCount() const { return vertices.size(); }
@@ -97,10 +77,10 @@ struct Mesh {
 struct Object {
     size_t number_vertices = 0;
     size_t number_elements = 0;
-    float gl_draw_mode = GL_TRIANGLES;
+    GLenum gl_draw_mode = GL_TRIANGLES;
     bool enabled = true;
 
-    Object(size_t vert, size_t elem, float draw_mode)
+    Object(size_t vert, size_t elem, GLenum draw_mode)
         : number_vertices(vert)
         , number_elements(elem)
         , gl_draw_mode(draw_mode) {}

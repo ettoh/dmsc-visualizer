@@ -75,8 +75,6 @@ class Solver {
     // Timetable<InterSatelliteLink, TimeSlot> edge_time_slots = Timetable<InterSatelliteLink, TimeSlot>();
     std::map<const InterSatelliteLink*, float>
         edge_cache_progress; // max. time for which cache (for visibility) is avaiable
-
-    [[deprecated]] bool sphereIntersection(const InterSatelliteLink& edge, const float time);
 };
 
 } // namespace dmsc

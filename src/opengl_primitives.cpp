@@ -40,23 +40,20 @@ Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, 
             float stack_angle = static_cast<float>(M_PI) / 2.f - (i * stack_step);
             float sector_angle = (j * sector_step);
 
-            vertex.x = center.y + radius * cos(stack_angle) * sin(sector_angle); // y
-            vertex.y = -center.z - radius * sin(stack_angle);                    // z
-            vertex.z = center.x + radius * cos(stack_angle) * cos(sector_angle); // x
+            vertex.position.x = center.y + radius * cos(stack_angle) * sin(sector_angle); // y
+            vertex.position.y = -center.z - radius * sin(stack_angle);                    // z
+            vertex.position.z = center.x + radius * cos(stack_angle) * cos(sector_angle); // x
 
             // texcoords
-            vertex.tx = (float)j / number_of_sectors;
-            vertex.ty = (float)i / number_of_stacks;
+            vertex.texture.x = (float)j / number_of_sectors;
+            vertex.texture.y = (float)i / number_of_stacks;
 
             // normal
-            glm::vec3 position = glm::vec3(vertex.x, vertex.y, vertex.z) - center;
-            glm::vec3 normal = glm::normalize(position);
-            vertex.nx = normal.x;
-            vertex.ny = normal.y;
-            vertex.nz = normal.z;
+            glm::vec3 position = vertex.position - center;
+            vertex.normal = glm::normalize(position);
 
-            // volors
-            vertex.setColor(0.0f, 0.0f, 0.0f);
+            // colors
+            vertex.color = glm::vec3(0.f);
 
             model.vertices.push_back(vertex);
         }
@@ -113,14 +110,10 @@ Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, co
         float t = i * orbit.getPeriod() / number_of_sides;
         glm::vec3 cartesian_coords = orbit.cartesian_coordinates(t) / scale;
         // Vertices
-        vertex.x = center.x + cartesian_coords.x;
-        vertex.y = center.y + cartesian_coords.y;
-        vertex.z = center.z + cartesian_coords.z;
+        vertex.position = center + cartesian_coords;
 
         // Colors
-        vertex.r = 0.5f;
-        vertex.g = 0.5f;
-        vertex.b = 0.5f;
+        vertex.color = glm::vec3(.5f);
         model.vertices.push_back(vertex);
     }
 
@@ -140,13 +133,13 @@ Mesh OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, cons
 
     for (float i = 0; i < colored_segments; i++) {
         VertexData v1;
-        v1.setColor(color.r, color.g, color.b);
-        v1.setPosition(p1 + distance_vector * (i * 2 / segments));
+        v1.color = color;
+        v1.position = p1 + distance_vector * (i * 2 / segments);
         m.vertices.push_back(v1);
 
         VertexData v2;
-        v2.setColor(color.r, color.g, color.b);
-        v2.setPosition(p1 + distance_vector * ((i * 2 + 1) / segments));
+        v2.color = color;
+        v2.position = p1 + distance_vector * ((i * 2 + 1) / segments);
         m.vertices.push_back(v2);
     }
 

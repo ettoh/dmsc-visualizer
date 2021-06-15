@@ -672,7 +672,8 @@ void OpenGLWidget::buildGUI() {
         ImGui::Begin("Simulation control panel"); // Create a window and append into it.
 
         ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
-        if (ImGui::Button("Pause")) {
+        char* btn_text = paused ? "Play" : "Pause";
+        if (ImGui::Button(btn_text)) {
             paused = !paused;
         }
         ImGui::SameLine();
