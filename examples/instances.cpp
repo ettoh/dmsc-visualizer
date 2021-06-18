@@ -12,13 +12,19 @@ int main() {
     sv.inclination = dmsc::rad(23.f);
     instance.satellites.push_back(sv); // satellite 2
 
-    // 2. schedule communications between satellites
-    instance.edges.push_back(dmsc::Edge(0, 1));       // communication between sat 0 and sat 1
-    instance.edges.push_back(dmsc::Edge(0, 2, true)); // optional communication between sat 0 and sat 2
-    instance.edges.push_back(dmsc::Edge(1, 2, true)); // optional communication between sat 1 and sat 2
+    // 2. define which satellites can communicate with each other
+    instance.edges.push_back(dmsc::Edge(0, 1)); // link between sat 0 and sat 1
+    instance.edges.push_back(dmsc::Edge(0, 2)); // link between sat 0 and sat 2
+    instance.edges.push_back(dmsc::Edge(1, 2)); // link between sat 1 and sat 2
 
-    // 3. visualize instance
+    // 3. schedule directed communications between two satellites
+    instance.edges.push_back(dmsc::Edge(0, 1, dmsc::EdgeType::SCHEDULED_COMMUNICATION));
+
+    // 4. visualize instance
     dmsc::visualizeInstance(instance);
+
+    // 5. save instance
+    instance.save("instance.csv");
 
     return 0;
 }

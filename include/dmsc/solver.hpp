@@ -29,7 +29,7 @@ class Solver {
     };
 
     virtual Solution solve() = 0;
-    float lowerBound();
+    // float lowerBound();
 
   protected:
     /**

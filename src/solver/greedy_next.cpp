@@ -3,6 +3,8 @@
 namespace dmsc {
 namespace solver {
 
+// TODO does instance is valid for this solver?
+// greedy next ignores the schedules communications - it scans all isl
 Solution GreedyNext::solve() {
     // start time for computation time
     auto t_start = std::chrono::system_clock::now();
@@ -14,7 +16,7 @@ Solution GreedyNext::solve() {
 
     // select edges for computation
     std::vector<const InterSatelliteLink*> remaining_edges;
-    for (const InterSatelliteLink& e : instance.getEdges()) {
+    for (const InterSatelliteLink& e : instance.getISL()) {
         float t_communication = nextCommunication(e, 0.0f);
         if (t_communication < INFINITY && !e.isOptional()) {
             remaining_edges.push_back(&e);
@@ -52,7 +54,7 @@ Solution GreedyNext::solve() {
             new_orientations.sat2.start, new_orientations.sat2.start, new_orientations.sat2.direction);
 
         // map position in remaining edges to position in all edges
-        std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.getEdges()[0];
+        std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.getISL()[0];
         // add edge
         scan_cover.insert({static_cast<uint32_t>(edge_index), t_next});
         remaining_edges.erase(remaining_edges.begin() + best_edge_pos);

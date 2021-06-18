@@ -9,6 +9,8 @@
 
 namespace dmsc {
 
+using ScheduledCommunication = std::pair<uint32_t, uint32_t>;
+
 /**
  * @brief TODO
  *
@@ -17,19 +19,20 @@ class AdjacencyMatrix {
   public:
     struct Item {
         uint32_t weight = ~0u;
-        uint32_t edge_idx = ~0u; // index of isl-object in physical instance
+        uint32_t isl_idx = ~0u; // index of isl-object in physical instance
         Item() = default;
-        Item(const uint32_t weight, const uint32_t edge_idx)
+        Item(const uint32_t weight, const uint32_t isl_idx)
             : weight(weight)
-            , edge_idx(edge_idx) {}
+            , isl_idx(isl_idx) {}
     };
 
     AdjacencyMatrix() = delete;
     AdjacencyMatrix(const size_t size, const Item& default_value = Item());
+    std::vector<Item>& operator[](size_t row) { return matrix[row]; }
+    const std::vector<Item>& operator[](size_t row) const { return matrix[row]; }
+    void clear();
 
     std::vector<std::vector<Item>> matrix;
-
-    void clear();
 
     // GETTER
     std::vector<Item> column(const size_t column) const;
@@ -38,18 +41,23 @@ class AdjacencyMatrix {
 
 // ------------------------------------------------------------------------------------------------
 
+enum class EdgeType {
+    INTERSATELLITE_LINK,     // undirected; two satellites can communicate via ISL
+    SCHEDULED_COMMUNICATION, // directed; satellite A has to send data to satellite B
+};
+
 /**
  * @brief Edge between two vertices.
  */
 struct Edge {
     uint32_t from_idx; // Index of vertices. If Edge is not bidirectional, this is the origin.
     uint32_t to_idx;   // Index of vertices. If Edge is not bidirectional, this is the target.
-    bool optional;     // If true, no communication is scheduled for this edge.
+    EdgeType type;
 
-    Edge(const uint32_t from_idx, const uint32_t to_idx, const bool optional = false)
+    Edge(const uint32_t from_idx, const uint32_t to_idx, const EdgeType type = EdgeType::INTERSATELLITE_LINK)
         : from_idx(from_idx)
         , to_idx(to_idx)
-        , optional(optional) {}
+        , type(type) {}
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -94,21 +102,27 @@ class PhysicalInstance {
     PhysicalInstance(const PhysicalInstance& source); // Copy
     PhysicalInstance& operator=(const PhysicalInstance& source);
 
-    void removeInvalidEdges();
+    /**
+     * @brief Removes all intersatellite links that will never be visible. I.e. if an ISL is always blocked by the
+     * central mass, it will be removed.
+     */
+    void removeInvalidISL();
+
+    std::vector<ScheduledCommunication> scheduled_communications;
 
     // GETTER
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
     const std::vector<Satellite>& getSatellites() const { return satellites; }
-    const std::vector<InterSatelliteLink>& getEdges() const { return edges; }
+    const std::vector<InterSatelliteLink>& getISL() const { return intersatellite_links; }
     const AdjacencyMatrix& getAdjacencyMatrix() const { return adjacency_matrix; }
-    const size_t edgeSize() const { return edges.size(); }
-    const size_t satelliteSize() const { return satellites.size(); }
+    const size_t islCount() const { return intersatellite_links.size(); }
+    const size_t satelliteCount() const { return satellites.size(); }
 
   private:
     std::vector<Satellite> satellites;
-    std::vector<InterSatelliteLink> edges;
-    CentralMass cm;
+    std::vector<InterSatelliteLink> intersatellite_links;
     AdjacencyMatrix adjacency_matrix = AdjacencyMatrix(0);
+    CentralMass cm;
     enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
 
     void buildAdjacencyMatrix();

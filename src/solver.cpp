@@ -7,7 +7,7 @@
 
 namespace dmsc {
 
-float Solver::lowerBound() {
+/* float Solver::lowerBound() {
     float lower_bound = 0;
     for (const InterSatelliteLink& e : instance.getEdges()) {
         float t = nextVisibility(e, 0.0);
@@ -15,7 +15,9 @@ float Solver::lowerBound() {
             lower_bound = t;
     }
     return lower_bound;
-}
+} */
+
+// ------------------------------------------------------------------------------------------------
 
 float Solver::nextCommunication(const InterSatelliteLink& edge, const float time_0) {
     // edge is never visible?
@@ -68,8 +70,10 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
     return INFINITY;
 }
 
+// ------------------------------------------------------------------------------------------------
+
 void Solver::createCache() {
-    for (const auto& edge : instance.getEdges()) {
+    for (const auto& edge : instance.getISL()) {
         for (float t = 0.0f; t < edge.getPeriod(); t += step_size) {
             float t_next = findNextVisiblity(edge, t);
             if (t_next == INFINITY || t_next >= edge.getPeriod()) {
@@ -88,6 +92,8 @@ void Solver::createCache() {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+
 float Solver::nextVisibility(const InterSatelliteLink& edge, const float t0) {
     if (edge_time_slots[&edge].size() == 0) {
         return INFINITY;
@@ -104,6 +110,8 @@ float Solver::nextVisibility(const InterSatelliteLink& edge, const float t0) {
     return t_next + n_periods;
 }
 
+// ------------------------------------------------------------------------------------------------
+
 float Solver::findNextVisiblity(const InterSatelliteLink& edge, const float t0) const {
     for (float t = t0; t <= t0 + edge.getPeriod(); t += step_size) {
         if (!edge.isBlocked(t)) {
@@ -113,6 +121,8 @@ float Solver::findNextVisiblity(const InterSatelliteLink& edge, const float t0) 
     // edge is never visible
     return INFINITY;
 }
+
+// ------------------------------------------------------------------------------------------------
 
 float Solver::findLastVisible(const InterSatelliteLink& edge, const float t0) const {
     for (float t = t0; t <= t0 + edge.getPeriod(); t += step_size) {

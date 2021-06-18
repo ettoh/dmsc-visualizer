@@ -340,10 +340,10 @@ std::vector<Mesh> OpenGLWidget::createLines() {
     std::vector<Mesh> all_lines;
 
     // build edges
-    for (uint32_t i = 0; i < problem_instance.getEdges().size(); i++) {
+    for (uint32_t i = 0; i < problem_instance.getISL().size(); i++) {
         Mesh edge_line;
         edge_line.gl_draw_mode = GL_LINES;
-        const InterSatelliteLink& edge = problem_instance.getEdges().at(i);
+        const InterSatelliteLink& edge = problem_instance.getISL().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 color = glm::vec3(1.f);
@@ -422,7 +422,7 @@ void OpenGLWidget::recalculateEdges() {
     // iterate through scan cover
     if (state == SOLUTION) {
         // hide all edges that have already been scanned
-        for (uint32_t i = 0; i < problem_instance.getEdges().size(); i++) {
+        for (uint32_t i = 0; i < problem_instance.getISL().size(); i++) {
             auto range = scan_cover.equal_range(i);
             if (range.first == scan_cover.end()) {
                 edge_subscene->disable(i); // edge is not part of the scan cover -> hide it
@@ -596,14 +596,14 @@ void OpenGLWidget::visualizeSolution(const PhysicalInstance& instance, const Sol
 
     // build timeline for satellite orientations and edge order
     for (const auto& scan : solution.scan_cover) {
-        if (scan.first >= problem_instance.getEdges().size()) {
+        if (scan.first >= problem_instance.getISL().size()) {
             printf("Solution and instance does not match!\n");
             assert(false);
             exit(EXIT_FAILURE);
         }
 
         float t = scan.second; // time when edge is scheduled
-        const InterSatelliteLink& isl = problem_instance.getEdges().at(scan.first);
+        const InterSatelliteLink& isl = problem_instance.getISL().at(scan.first);
         EdgeOrientation needed_orientation = isl.getOrientation(t);
 
         // add corresponding events for both satellites where they have to face in the needed direction in order to

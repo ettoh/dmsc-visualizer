@@ -8,15 +8,11 @@ namespace solver {
 /**
  * @brief Bunch together all information how a scheduled communication between two satellites can be performed (and
  * tracks the current progress).
- * A scheduled intersatellite communication has to be probed from both sides. With
- * intermediate satellites (multihop) allowed, for each direction a different route can be chosen. We have to keep track
- * both paths.
  */
 struct GreedyNextKHop::Communication {
-    const InterSatelliteLink* scheduled_link = nullptr;
+    ScheduledCommunication scheduled_communication = {~0u, ~0u};
     AdjacencyMatrix possible_paths = AdjacencyMatrix(0);
-    uint32_t forward_idx = 0u;  // index of current vertex for the forward direction (sat1 -> sat2)
-    uint32_t backward_idx = 0u; // index of current vertex for the backward direction (sat2 -> sat1)
+    uint32_t forward_idx = 0u; // index of current vertex for the forward direction (sat1 -> sat2)
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -32,101 +28,80 @@ Solution GreedyNextKHop::solve() {
 
     // select edges for computation
     std::vector<Communication> remaining_communications;
-    for (const InterSatelliteLink& e : instance.getEdges()) {
-        float t_communication = nextCommunication(e, 0.0f);
-        if (t_communication < INFINITY && !e.isOptional()) {
-            Communication communication;
-            auto res = findPaths(e.getV1Idx(), e.getV2Idx());
-            if (res.first) { // there is at least one path from a to b
-                communication.possible_paths = res.second;
-                communication.forward_idx = e.getV1Idx();
-                communication.backward_idx = e.getV2Idx();
-                communication.scheduled_link = &e;
-                remaining_communications.push_back(communication);
-            }
+    for (const ScheduledCommunication& c : instance.scheduled_communications) {
+        Communication communication;
+        auto paths = findPaths(c.first, c.second);
+        if (paths.first) { // there is at least one path from a to b
+            communication.scheduled_communication = c;
+            communication.possible_paths = paths.second;
+            communication.forward_idx = c.first;
+            remaining_communications.push_back(communication);
         }
     }
 
     // choose best edge in each iteration
     while (remaining_communications.size() > 0) {
-        uint32_t chosen_communication = 0u;
-        uint32_t chosen_neighbour = 0u;
-        bool forward_chosen = true;
+        uint32_t chosen_communication = ~0u;
+        uint32_t chosen_neighbour = ~0u;
         float t_next = INFINITY; // absolute time
 
         // find best edge depending on the time passed
         for (int i = 0; i < remaining_communications.size(); i++) {
             const Communication& com = remaining_communications[i];
 
-            // forward direction not done
-            if (com.forward_idx != com.scheduled_link->getV2Idx()) {
-                std::vector<AdjacencyMatrix::Item> possible_neighbours = com.possible_paths.matrix[com.forward_idx];
-                // iterate over all possibilities to continue the currently chosen path
-                for (uint32_t neighbour = 0u; neighbour < possible_neighbours.size(); neighbour++) {
-                    if (possible_neighbours[neighbour].weight == 1u) { // this vertex is part of a possible path
-                        const InterSatelliteLink& link = instance.getEdges()[possible_neighbours[neighbour].edge_idx];
-                        float next_communication = nextCommunication(link, curr_time);
+            std::vector<AdjacencyMatrix::Item> possible_neighbours = com.possible_paths[com.forward_idx];
+            // iterate over all possibilities to continue the currently chosen path
+            bool path_possible = false; // is there at least one edge we can use? (will be visible in the future)
+            for (uint32_t neighbour = 0u; neighbour < possible_neighbours.size(); neighbour++) {
+                if (possible_neighbours[neighbour].weight == 1u) { // this vertex is part of a possible path
+                    const InterSatelliteLink& link = instance.getISL()[possible_neighbours[neighbour].isl_idx];
+                    float next_communication = nextCommunication(link, curr_time);
 
-                        // edge is avaible earlier
-                        if (next_communication < t_next) {
-                            t_next = next_communication;
-                            chosen_neighbour = neighbour;
-                            chosen_communication = i;
-                            forward_chosen = true;
-                        }
-
-                        // it's not getting better
-                        if (t_next - curr_time == 0.f)
-                            break;
+                    // will the edge become visible on the future?
+                    if (next_communication < INFINITY) {
+                        path_possible = true;
                     }
+
+                    // edge is avaible earlier
+                    if (next_communication < t_next) {
+                        t_next = next_communication;
+                        chosen_neighbour = neighbour;
+                        chosen_communication = i;
+                    }
+
+                    // it's not getting better
+                    if (t_next - curr_time == 0.f)
+                        break;
                 }
             }
 
-            // backward direction not done
-            if (com.backward_idx != com.scheduled_link->getV1Idx()) {
-                std::vector<AdjacencyMatrix::Item> possible_neighbours = com.possible_paths.column(com.backward_idx);
-                // iterate over all possibilities to continue the currently chosen path
-                for (uint32_t neighbour = 0u; neighbour < possible_neighbours.size(); neighbour++) {
-                    if (possible_neighbours[neighbour].weight == 1u) { // this vertex is part of a possible path
-                        const InterSatelliteLink& link = instance.getEdges()[possible_neighbours[neighbour].edge_idx];
-                        float next_communication = nextCommunication(link, curr_time);
-
-                        // edge is avaible earlier
-                        if (next_communication < t_next) {
-                            t_next = next_communication;
-                            chosen_neighbour = neighbour;
-                            chosen_communication = i;
-                            forward_chosen = false;
-                        }
-
-                        // it's not getting better
-                        if (t_next - curr_time == 0.f)
-                            break;
-                    }
-                }
+            // we cant continue the current path
+            // TODO restart? different path?
+            if (!path_possible) {
+                remaining_communications.erase(remaining_communications.begin() + i);
+                i--; // the size of the remaining communications just reduced by 1
             }
         }
 
         // refresh orientation of chosen satellites
         // todo only recalculate needed satellites ...
 
-        // update communication
-        Communication& com = remaining_communications[chosen_communication];
-        uint32_t edge_idx = ~0u;
-        if (forward_chosen) {
-            edge_idx = com.possible_paths.matrix[com.forward_idx][chosen_neighbour].edge_idx;
-            com.forward_idx = chosen_neighbour;
-        } else {
-            edge_idx = com.possible_paths.column(com.backward_idx)[chosen_neighbour].edge_idx;
-            com.backward_idx = chosen_neighbour;
+        // no "next" edge was found
+        if(chosen_communication == ~0u || chosen_neighbour == ~0u || t_next == INFINITY){
+            break;
         }
 
+        // update communication
+        Communication& com = remaining_communications[chosen_communication];
+        uint32_t isl_idx = com.possible_paths[com.forward_idx][chosen_neighbour].isl_idx;
+        com.forward_idx = chosen_neighbour;
+
         // add edge to solution
-        const InterSatelliteLink* isl = &instance.getEdges()[edge_idx];
-        scan_cover.insert({edge_idx, t_next});
+        const InterSatelliteLink* isl = &instance.getISL()[isl_idx];
+        scan_cover.insert({isl_idx, t_next});
 
         // if chosen communication is done now, remove it
-        if (com.forward_idx == com.scheduled_link->getV2Idx() && com.backward_idx == com.scheduled_link->getV1Idx()) {
+        if (com.forward_idx == com.scheduled_communication.second) {
             remaining_communications.erase(remaining_communications.begin() + chosen_communication);
         }
 
@@ -159,7 +134,7 @@ std::pair<bool, AdjacencyMatrix> GreedyNextKHop::findPaths(const uint32_t origin
     // store path in correct order and sorted (to be able to find already visited vertices)
     using Subpath = std::pair<std::vector<uint32_t>, std::set<uint32_t>>;
 
-    AdjacencyMatrix result(instance.edgeSize(), AdjacencyMatrix::Item(0u, ~0u));
+    AdjacencyMatrix result(instance.satelliteCount(), AdjacencyMatrix::Item(0u, ~0u));
     const AdjacencyMatrix& global_adj = instance.getAdjacencyMatrix();
     std::deque<Subpath> subpaths = {{{origin_idx}, {origin_idx}}};
     bool path_found = false; // at least one path found?

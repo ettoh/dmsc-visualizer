@@ -107,8 +107,8 @@ Instance::Instance(const std::string& file) {
                 std::getline(ss, value_cache, ',');
                 uint32_t to_idx = std::stoi(value_cache);
                 std::getline(ss, value_cache, ',');
-                bool optional = std::stoi(value_cache); // TODO how is bool stored?
-                Edge e = Edge(from_idx, to_idx, optional);
+                int type = std::stoi(value_cache);
+                Edge e = Edge(from_idx, to_idx, static_cast<EdgeType>(type));
                 edges.push_back(e); // TODO copied by value? -> scope? || should be ok ...
                 break;
             }
@@ -137,7 +137,7 @@ void Instance::save(const std::string& file) const {
      * height_perigee, eccentricity, raan, perigee, inclination, rotation speed, initial_true_anomaly
      * [...]
      * ===END===
-     * from_vertex id #1, to_vertex id #2, optional
+     * from_vertex id #1, to_vertex id #2, type
      * [...]
      */
 
@@ -164,7 +164,7 @@ void Instance::save(const std::string& file) const {
         const Edge& e = edges[i];
         fs << e.from_idx << ",";
         fs << e.to_idx << ",";
-        fs << e.optional << "\n";
+        fs << static_cast<int>(e.type) << "\n";
     }
     fs.close();
 }
@@ -175,19 +175,18 @@ void Instance::save(const std::string& file) const {
 // = Physical Instance
 // ========================
 
+// TODO get rid
 PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
     cm.radius_central_mass = source.cm.radius_central_mass;
     cm.gravitational_parameter = source.cm.gravitational_parameter;
-
-    // copy all orbits and store old location for edges later
     satellites = source.satellites;
+    adjacency_matrix = source.adjacency_matrix;
+    scheduled_communications = source.scheduled_communications;
 
     // edges must point to the new orbit objects
-    for (const InterSatelliteLink& edge : source.edges) {
-        edges.push_back(InterSatelliteLink(edge.getV1Idx(), edge.getV2Idx(), satellites, cm, edge.isOptional()));
+    for (const InterSatelliteLink& isl : source.intersatellite_links) {
+        intersatellite_links.push_back(InterSatelliteLink(isl.getV1Idx(), isl.getV2Idx(), satellites, cm));
     }
-
-    adjacency_matrix = source.adjacency_matrix;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -206,12 +205,20 @@ PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
     }
 
     // Edges
-    edges.reserve(raw_instance.edges.size());
     for (const auto& e : raw_instance.edges) {
         if (e.from_idx >= satellites.size() || e.to_idx >= satellites.size())
             throw std::runtime_error("No such satellite in given vector.");
 
-        edges.push_back(InterSatelliteLink(e.from_idx, e.to_idx, satellites, cm, e.optional));
+        switch (e.type) {
+        case EdgeType::INTERSATELLITE_LINK:
+            intersatellite_links.push_back(InterSatelliteLink(e.from_idx, e.to_idx, satellites, cm));
+            break;
+        case EdgeType::SCHEDULED_COMMUNICATION:
+            scheduled_communications.push_back({e.from_idx, e.to_idx});
+            break;
+        default:
+            break;
+        }
     }
 
     buildAdjacencyMatrix();
@@ -220,18 +227,19 @@ PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
 // ------------------------------------------------------------------------------------------------
 
 void PhysicalInstance::buildAdjacencyMatrix() {
-    adjacency_matrix = AdjacencyMatrix(edges.size(), AdjacencyMatrix::Item(0u, ~0u));
+    adjacency_matrix = AdjacencyMatrix(satellites.size(), AdjacencyMatrix::Item(0u, ~0u));
 
     // fill matrix
-    for (uint32_t edge_idx = 0; edge_idx < edges.size(); edge_idx++) {
-        const InterSatelliteLink& isl = edges[edge_idx];
-        adjacency_matrix.matrix[isl.getV1Idx()][isl.getV2Idx()] = AdjacencyMatrix::Item(1u, edge_idx);
-        adjacency_matrix.matrix[isl.getV2Idx()][isl.getV1Idx()] = AdjacencyMatrix::Item(1u, edge_idx);
+    for (uint32_t isl_idx = 0; isl_idx < intersatellite_links.size(); isl_idx++) {
+        const InterSatelliteLink& isl = intersatellite_links[isl_idx];
+        adjacency_matrix[isl.getV1Idx()][isl.getV2Idx()] = AdjacencyMatrix::Item(1u, isl_idx);
+        adjacency_matrix[isl.getV2Idx()][isl.getV1Idx()] = AdjacencyMatrix::Item(1u, isl_idx);
     }
 }
 
 // ------------------------------------------------------------------------------------------------
 
+// TODO get rid
 PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     // check for self-assignment
     if (&source == this)
@@ -239,26 +247,26 @@ PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
 
     cm.radius_central_mass = source.cm.radius_central_mass;
     cm.gravitational_parameter = source.cm.gravitational_parameter;
-
-    // copy all orbits and store old location for edges later
     satellites = source.satellites;
     satellites.shrink_to_fit();
+    adjacency_matrix = source.adjacency_matrix;
+    scheduled_communications = source.scheduled_communications;
 
     // edges must point to the new orbit objects
-    edges.clear();
-    for (const InterSatelliteLink& edge : source.edges) {
-        edges.push_back(InterSatelliteLink(edge.getV1Idx(), edge.getV2Idx(), satellites, cm, edge.isOptional()));
+    intersatellite_links.clear();
+    for (const InterSatelliteLink& isl : source.intersatellite_links) {
+        intersatellite_links.push_back(InterSatelliteLink(isl.getV1Idx(), isl.getV2Idx(), satellites, cm));
     }
-    edges.shrink_to_fit();
 
+    intersatellite_links.shrink_to_fit();
     return *this;
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void PhysicalInstance::removeInvalidEdges() {
-    for (int i = (int)edges.size() - 1; i >= 0; i--) {
-        const InterSatelliteLink& e = edges[i];
+void PhysicalInstance::removeInvalidISL() {
+    for (int i = (int)intersatellite_links.size() - 1; i >= 0; i--) {
+        const InterSatelliteLink& e = intersatellite_links[i];
         bool get_visible = false;
         for (float t = 0.0f; t < e.getPeriod(); t += 1.0f) {
             if (!e.isBlocked(t)) {
@@ -269,10 +277,11 @@ void PhysicalInstance::removeInvalidEdges() {
 
         // remove edge
         if (!get_visible) {
-            edges.erase(edges.begin() + i);
+            intersatellite_links.erase(intersatellite_links.begin() + i);
         }
     }
-    edges.shrink_to_fit();
+    intersatellite_links.shrink_to_fit();
+    buildAdjacencyMatrix();
 }
 
 // ------------------------------------------------------------------------------------------------
