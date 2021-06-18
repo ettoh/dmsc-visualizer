@@ -11,7 +11,7 @@ namespace solver {
  */
 struct GreedyNextKHop::Communication {
     ScheduledCommunication scheduled_communication = {~0u, ~0u};
-    AdjacencyMatrix possible_paths = AdjacencyMatrix(0);
+    AdjacencyMatrix possible_paths = AdjacencyMatrix(0, AdjacencyMatrix::Item(~0u, ~0u));
     uint32_t forward_idx = 0u; // index of current vertex for the forward direction (sat1 -> sat2)
 };
 
@@ -46,7 +46,7 @@ Solution GreedyNextKHop::solve() {
         float t_next = INFINITY; // absolute time
 
         // find best edge depending on the time passed
-        for (int i = 0; i < remaining_communications.size(); i++) {
+        for (uint32_t i = 0; i < remaining_communications.size(); i++) {
             const Communication& com = remaining_communications[i];
 
             std::vector<AdjacencyMatrix::Item> possible_neighbours = com.possible_paths[com.forward_idx];

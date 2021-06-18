@@ -125,8 +125,8 @@ class InterSatelliteLink {
     float getMaxAngle() const { return max_angle; }
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
-    const uint32_t getV1Idx() const { return v1_idx; }
-    const uint32_t getV2Idx() const { return v2_idx; }
+    uint32_t getV1Idx() const { return v1_idx; }
+    uint32_t getV2Idx() const { return v2_idx; }
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
 
   private:

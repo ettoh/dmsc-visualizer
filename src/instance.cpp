@@ -36,21 +36,6 @@ void AdjacencyMatrix::clear() {
 
 // ------------------------------------------------------------------------------------------------
 
-std::vector<AdjacencyMatrix::Item> AdjacencyMatrix::column(const size_t column) const {
-    std::vector<Item> result;
-    result.reserve(matrix.size());
-    for (int i = 0; i < matrix.size(); i++) {
-        result.push_back(matrix[i][column]);
-    }
-    return result;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-std::vector<AdjacencyMatrix::Item> AdjacencyMatrix::row(const size_t row) const { return matrix[row]; }
-
-// ------------------------------------------------------------------------------------------------
-
 // ========================
 // = Instance
 // ========================
@@ -286,7 +271,7 @@ void PhysicalInstance::removeInvalidISL() {
 
 // ------------------------------------------------------------------------------------------------
 
-float rad(const float deg) { return deg * 0.01745329251994329577f; }; // convert degrees to radians
-float deg(const float rad) { return rad * 57.2957795130823208768f; }; // convert radians to degrees
+float rad(const float deg) { return deg * 0.01745329251994329577f; } // convert degrees to radians
+float deg(const float rad) { return rad * 57.2957795130823208768f; } // convert radians to degrees
 
 } // namespace dmsc

@@ -29,7 +29,7 @@ Solution GreedyNext::solve() {
         float t_next = INFINITY; // absolute time
 
         // find best edge depending on the time passed
-        for (int i = 0; i < remaining_edges.size(); i++) {
+        for (size_t i = 0; i < remaining_edges.size(); i++) {
             const InterSatelliteLink& e = *remaining_edges.at(i);
             float next_communication = nextCommunication(e, curr_time);
 

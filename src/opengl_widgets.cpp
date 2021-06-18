@@ -319,7 +319,7 @@ void OpenGLWidget::recalculateOrbitPositions() {
         nmbr_vertecies = satellite_subscene->getObjectInfo().at(0).number_vertices;
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 offset = o.cartesian_coordinates(sim_time) / real_world_scale;
-        for (int i = 0; i < nmbr_vertecies; i++) {
+        for (size_t i = 0; i < nmbr_vertecies; i++) {
             positions.push_back(offset.x);
             positions.push_back(offset.y);
             positions.push_back(offset.z);
@@ -684,7 +684,7 @@ void OpenGLWidget::buildGUI() {
         ImGui::SetWindowSize(ImVec2(350, 300));
 
         ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
-        char* btn_text = paused ? "Play" : "Pause";
+        const char* btn_text = paused ? "Play" : "Pause";
         if (ImGui::Button(btn_text)) {
             paused = !paused;
         }

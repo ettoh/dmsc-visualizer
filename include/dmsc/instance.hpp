@@ -27,16 +27,12 @@ class AdjacencyMatrix {
     };
 
     AdjacencyMatrix() = delete;
-    AdjacencyMatrix(const size_t size, const Item& default_value = Item());
+    AdjacencyMatrix(const size_t size, const Item& default_value);
     std::vector<Item>& operator[](size_t row) { return matrix[row]; }
     const std::vector<Item>& operator[](size_t row) const { return matrix[row]; }
     void clear();
 
     std::vector<std::vector<Item>> matrix;
-
-    // GETTER
-    std::vector<Item> column(const size_t column) const;
-    std::vector<Item> row(const size_t row) const;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -115,13 +111,13 @@ class PhysicalInstance {
     const std::vector<Satellite>& getSatellites() const { return satellites; }
     const std::vector<InterSatelliteLink>& getISL() const { return intersatellite_links; }
     const AdjacencyMatrix& getAdjacencyMatrix() const { return adjacency_matrix; }
-    const size_t islCount() const { return intersatellite_links.size(); }
-    const size_t satelliteCount() const { return satellites.size(); }
+    size_t islCount() const { return intersatellite_links.size(); }
+    size_t satelliteCount() const { return satellites.size(); }
 
   private:
     std::vector<Satellite> satellites;
     std::vector<InterSatelliteLink> intersatellite_links;
-    AdjacencyMatrix adjacency_matrix = AdjacencyMatrix(0);
+    AdjacencyMatrix adjacency_matrix = AdjacencyMatrix(0, AdjacencyMatrix::Item(~0u, ~0u));
     CentralMass cm;
     enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
 
