@@ -2,15 +2,15 @@
 
 namespace dmsc {
 
-using OpenGLPrimitives::Mesh;
+using OpenGLPrimitives::Object;
 
-Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy) {
+Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy) {
     unsigned short number_of_stacks = accuracy;
     unsigned short number_of_sectors = accuracy * 2;
     float stack_step = static_cast<float>(M_PI) / number_of_stacks;
     float sector_step = 2.f * static_cast<float>(M_PI) / number_of_sectors;
 
-    Mesh model = Mesh();
+    Object model = Object();
     model.gl_draw_mode = GL_TRIANGLES;
 
     /**
@@ -89,8 +89,8 @@ Mesh OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, 
 
 // ------------------------------------------------------------------------------------------------
 
-Mesh OpenGLPrimitives::createSatellite() {
-    Mesh model = Mesh();
+Object OpenGLPrimitives::createSatellite() {
+    Object model = Object();
     model.gl_draw_mode = GL_TRIANGLES;
     const float cube_length = 0.005f;
 
@@ -99,10 +99,10 @@ Mesh OpenGLPrimitives::createSatellite() {
 
 // ------------------------------------------------------------------------------------------------
 
-Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
+Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
     int number_of_sides = 100;
 
-    Mesh model = Mesh();
+    Object model = Object();
     model.gl_draw_mode = GL_LINE_STRIP;
 
     for (int i = 0; i <= number_of_sides; i++) {
@@ -122,8 +122,8 @@ Mesh OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, co
 
 // ------------------------------------------------------------------------------------------------
 
-Mesh OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
-    Mesh m = Mesh();
+Object OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
+    Object m = Object();
     m.gl_draw_mode = GL_LINES;
 
     // for every colored segment we need a transparent counterpart - except the last segment

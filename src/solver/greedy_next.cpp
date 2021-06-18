@@ -18,7 +18,7 @@ Solution GreedyNext::solve() {
     std::vector<const InterSatelliteLink*> remaining_edges;
     for (const InterSatelliteLink& e : instance.getISL()) {
         float t_communication = nextCommunication(e, 0.0f);
-        if (t_communication < INFINITY && !e.isOptional()) {
+        if (t_communication < INFINITY) {
             remaining_edges.push_back(&e);
         }
     }

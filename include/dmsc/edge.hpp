@@ -18,11 +18,10 @@ class InterSatelliteLink {
   public:
     // only defined for circular Orbits!
     InterSatelliteLink(const uint32_t& v1_idx, const uint32_t& v2_idx, const std::vector<Satellite>& satellites,
-                       const CentralMass cm, const bool optional = false)
+                       const CentralMass cm)
         : v1_idx(v1_idx)
         , v2_idx(v2_idx)
-        , cm(cm)
-        , optional(optional) {
+        , cm(cm) {
 
         if (v1_idx >= satellites.size() || v2_idx >= satellites.size()) {
             printf("There is no such satellite in given vector!\n");
@@ -121,8 +120,6 @@ class InterSatelliteLink {
         return result;
     }
 
-    bool isOptional() const { return optional; }
-
     // GETTER
     float getPeriod() const { return period; }
     float getMaxAngle() const { return max_angle; }
@@ -139,7 +136,6 @@ class InterSatelliteLink {
     uint32_t v2_idx;
     float period;    // [sec] time until satellite constellations repeat
     float max_angle; // [rad] max angle for satellites to see each other
-    bool optional;   // If true, no communication is scheduled for this edge
     CentralMass cm;
 };
 

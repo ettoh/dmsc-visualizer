@@ -34,7 +34,7 @@ class OpenGLWidget {
     void drawSubscene(const OpenGLPrimitives::Subscene& subscene);
     void recalculate();
     void recalculateOrbitPositions();
-    std::vector<OpenGLPrimitives::Mesh> createLines();
+    std::vector<OpenGLPrimitives::Object> createLines();
     void recalculateEdges();
     void deleteInstance();
     void pushSceneToGPU();
@@ -101,6 +101,10 @@ class OpenGLWidget {
     bool paused = false; // if true, the simulations is paused
     OpenGLPrimitives::Subscene* satellite_subscene = nullptr;
     OpenGLPrimitives::Subscene* edge_subscene = nullptr;
+    OpenGLPrimitives::Subscene* earth_subscene = nullptr;
+    OpenGLPrimitives::Subscene* static_subscene = nullptr;
+    size_t edgescene_com_start = ~0u; // object ID where the edges for scheduled communications begin
+    size_t edgescene_com_end = ~0u;   // object ID where the edges for scheduled communications end
     // solution
     std::map<const Satellite*, Timeline<glm::vec3>> satellite_orientations;
     ScanCover scan_cover;

@@ -13,8 +13,8 @@
 
 namespace dmsc {
 
-using OpenGLPrimitives::Mesh;
 using OpenGLPrimitives::Object;
+using OpenGLPrimitives::ObjectInfo;
 using OpenGLPrimitives::Subscene;
 using OpenGLPrimitives::VertexData;
 
@@ -316,7 +316,7 @@ void OpenGLWidget::recalculateOrbitPositions() {
     size_t nmbr_vertecies = 0;
     if (problem_instance.getSatellites().size() != 0) // size() will fail if no orbits in instance
         // assume that all satellites have the same amount of vertices
-        nmbr_vertecies = satellite_subscene->getObjects().at(0).number_vertices;
+        nmbr_vertecies = satellite_subscene->getObjectInfo().at(0).number_vertices;
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 offset = o.cartesian_coordinates(sim_time) / real_world_scale;
         for (int i = 0; i < nmbr_vertecies; i++) {
@@ -336,13 +336,11 @@ void OpenGLWidget::recalculateOrbitPositions() {
 
 // ------------------------------------------------------------------------------------------------
 
-std::vector<Mesh> OpenGLWidget::createLines() {
-    std::vector<Mesh> all_lines;
+std::vector<Object> OpenGLWidget::createLines() {
+    std::vector<Object> all_lines;
 
-    // build edges
-    for (uint32_t i = 0; i < problem_instance.getISL().size(); i++) {
-        Mesh edge_line;
-        edge_line.gl_draw_mode = GL_LINES;
+    // build ISL network
+    for (uint32_t i = 0; i < problem_instance.islCount(); i++) {
         const InterSatelliteLink& edge = problem_instance.getISL().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
@@ -368,9 +366,19 @@ std::vector<Mesh> OpenGLWidget::createLines() {
             }
         }
 
-        edge_line = OpenGLPrimitives::createLine(sat1, sat2, color, edge.isOptional());
+        Object edge_line = OpenGLPrimitives::createLine(sat1, sat2, color);
         all_lines.push_back(edge_line);
     }
+
+    // build schedules communications
+    for (const auto& c : problem_instance.scheduled_communications) {
+        glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
+        glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
+        Object communication_line = OpenGLPrimitives::createLine(sat1, sat2, glm::vec3(.55f, .1f, 1.f), true);
+        all_lines.push_back(communication_line);
+    }
+    edgescene_com_start = problem_instance.islCount();
+    edgescene_com_end = edgescene_com_start + problem_instance.scheduled_communications.size() - 1;
 
     // build satellite orientations
     for (auto const& satellite : problem_instance.getSatellites()) {
@@ -405,7 +413,7 @@ std::vector<Mesh> OpenGLWidget::createLines() {
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::recalculateEdges() {
-    std::vector<Mesh> line_meshes = createLines();
+    std::vector<Object> line_meshes = createLines();
 
     // push data to gpu
     size_t offset_vertices = 0;
@@ -425,7 +433,7 @@ void OpenGLWidget::recalculateEdges() {
         for (uint32_t i = 0; i < problem_instance.getISL().size(); i++) {
             auto range = scan_cover.equal_range(i);
             if (range.first == scan_cover.end()) {
-                edge_subscene->disable(i); // edge is not part of the scan cover -> hide it
+                edge_subscene->setEnabled(i, false); // edge is not part of the scan cover -> hide it
             } else {
                 float latest_use = 0.f;
                 for (auto it = range.first; it != range.second; ++it) {
@@ -434,7 +442,7 @@ void OpenGLWidget::recalculateEdges() {
 
                 // edge will not be part of a communication anymore
                 if (latest_use < sim_time) {
-                    edge_subscene->disable(i); // actually: diables the i-th object in subscene
+                    edge_subscene->setEnabled(i, false); // actually: diables the i-th object in subscene
                 }
             }
         }
@@ -450,7 +458,7 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     // draw each object individually
     size_t offset = 0;
     size_t offset_elements = 0;
-    for (const Object& o : subscene.getObjects()) {
+    for (const ObjectInfo& o : subscene.getObjectInfo()) {
         if (!o.enabled) {
             offset_elements += o.number_elements;
             offset += o.number_vertices;
@@ -499,6 +507,8 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     earth_subscene.program = earth_prog;
     this->satellite_subscene = &satellite_subscene;
     this->edge_subscene = &edge_subscene;
+    this->earth_subscene = &earth_subscene;
+    this->static_subscene = &static_subscene;
 
     // todo generalize
     glGenBuffers(1, &static_subscene.vbo_static);
@@ -515,21 +525,21 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     glGenBuffers(1, &edge_subscene.ibo_static);
 
     // 1. build meshes and push them to the gpu
-    Mesh sphere =
+    Object sphere =
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
     for (const Satellite& o : problem_instance.getSatellites()) {
         // Orbit
-        Mesh orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
+        Object orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
         static_subscene.add(orbit);
 
         // Satellite
-        Mesh satellite = OpenGLPrimitives::createSatellite();
+        Object satellite = OpenGLPrimitives::createSatellite();
         satellite_subscene.add(satellite); // position is later set by shader
     }
 
     // 1.2 Edges & orientations
-    std::vector<Mesh> line_meshes = createLines();
+    std::vector<Object> line_meshes = createLines();
     for (const auto& mesh : line_meshes) {
         edge_subscene.add(mesh);
     }
@@ -638,7 +648,7 @@ void OpenGLWidget::pushSceneToGPU() {
         // push data to gpu
         size_t offset_vertices = 0;
         size_t offset_elements = 0;
-        for (const auto& model : subscene.getModels()) {
+        for (const auto& model : subscene.getObjects()) {
             size_t object_size = model.totalVertexSize(); // size of all vertices in byte
 
             if (object_size != 0) {
@@ -671,6 +681,8 @@ void OpenGLWidget::buildGUI() {
     {
         ImGui::Begin("Simulation control panel"); // Create a window and append into it.
 
+        ImGui::SetWindowSize(ImVec2(350, 300));
+
         ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
         char* btn_text = paused ? "Play" : "Pause";
         if (ImGui::Button(btn_text)) {
@@ -680,13 +692,51 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::Button("Restart")) {
             sim_time = 0.f;
             sim_speed = 1;
-            edge_subscene->enableAll();
+            edge_subscene->setAllEnabled(true);
         }
 
         ImGui::InputInt("Speed", &sim_speed);
 
         int t = (int)sim_time;
         ImGui::Text("t = %+id %ih %imin %isec", (t / 86400), (t / 3600) % 24, (t / 60) % 60, t % 60);
+
+        if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
+            static bool hide_satellites = false;
+            if (ImGui::Checkbox("Hide satellites", &hide_satellites)) {
+                satellite_subscene->setAllEnabled(!hide_satellites);
+            }
+
+            static bool hide_earth = false;
+            if (ImGui::Checkbox("Hide earth", &hide_earth)) {
+                earth_subscene->setAllEnabled(!hide_earth);
+            }
+
+            static bool hide_orbits = false;
+            if (ImGui::Checkbox("Hide orbits", &hide_orbits)) {
+                static_subscene->setAllEnabled(!hide_orbits);
+            }
+
+            static bool hide_isl = false;
+            if (ImGui::Checkbox("Hide ISL-network", &hide_isl)) {
+                for (size_t i = 0; i < edgescene_com_start; i++) {
+                    edge_subscene->setEnabled(i, !hide_isl);
+                }
+            }
+
+            static bool hide_comms = false;
+            if (ImGui::Checkbox("Hide scheduled communications", &hide_comms)) {
+                for (size_t i = edgescene_com_start; i <= edgescene_com_end; i++) {
+                    edge_subscene->setEnabled(i, !hide_comms);
+                }
+            }
+
+            static bool hide_orientations = false;
+            if (ImGui::Checkbox("Hide satellite orientations", &hide_orientations)) {
+                for (size_t i = edgescene_com_end + 1; i < edge_subscene->objectCount(); i++) {
+                    edge_subscene->setEnabled(i, !hide_orientations);
+                }
+            }
+        }
 
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
                     ImGui::GetIO().Framerate);
@@ -724,6 +774,12 @@ void OpenGLWidget::deleteInstance() {
     }
     satellite_subscene = nullptr;
     edge_subscene = nullptr;
+    earth_subscene = nullptr;
+    static_subscene = nullptr;
+
+    edgescene_com_start = ~0u;
+    edgescene_com_end = ~0u;
+
     scene.clear();
 }
 

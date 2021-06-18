@@ -1,5 +1,5 @@
-#ifndef OPENGL_PRIMITIVES
-#define OPENGL_PRIMITIVES
+#ifndef DMSC_OPENGL_PRIMITIVES
+#define DMSC_OPENGL_PRIMITIVES
 
 #define _USE_MATH_DEFINES
 
@@ -10,7 +10,6 @@
 #include <vector>
 
 namespace dmsc {
-
 namespace OpenGLPrimitives {
 
 /**
@@ -27,11 +26,13 @@ struct VertexData {
     VertexData(const glm::vec3& v) { position = v; }
 };
 
+// ------------------------------------------------------------------------------------------------
+
 /**
  * Contains the mesh of an object.
  * The data within a container must be written contiguously!
  */
-struct Mesh {
+struct Object {
     std::vector<VertexData> vertices;
     std::vector<unsigned short> elements;
     GLenum gl_draw_mode = GL_TRIANGLES;
@@ -53,38 +54,32 @@ struct Mesh {
     }
 
     bool isElementObject() const { return elements.size() != 0; }
-
-    void add(const Mesh& mesh) {
-        if (gl_draw_mode != mesh.gl_draw_mode) {
-            printf("Two meshes of unequal type cannot be merged!\n");
-            assert(false);
-            exit(EXIT_FAILURE);
-        }
-
-        for (const auto& v : mesh.vertices) {
-            vertices.push_back(v);
-        }
-
-        for (const auto& e : mesh.elements) {
-            elements.push_back(e);
-        }
-    }
 };
 
+// ------------------------------------------------------------------------------------------------
+
 /**
- * @brief Store all neccessary data to draw the objects later without the meshes itself.
+ * @brief Store all neccessary data to draw the objects later without the object data itself.
  */
-struct Object {
+struct ObjectInfo {
     size_t number_vertices = 0;
     size_t number_elements = 0;
     GLenum gl_draw_mode = GL_TRIANGLES;
     bool enabled = true;
 
-    Object(size_t vert, size_t elem, GLenum draw_mode)
+    ObjectInfo(size_t vert, size_t elem, GLenum draw_mode)
         : number_vertices(vert)
         , number_elements(elem)
         , gl_draw_mode(draw_mode) {}
+
+    ObjectInfo(const Object& object) {
+        gl_draw_mode = object.gl_draw_mode;
+        number_elements = object.elementCount();
+        number_vertices = object.vertexCount();
+    }
 };
+
+// ------------------------------------------------------------------------------------------------
 
 /**
  * @brief Group of drawable objects that shares a program and can be described in the same way.
@@ -96,8 +91,9 @@ struct Subscene {
     GLuint ibo_static = 0;
 
   private:
-    std::vector<Mesh> models;
     std::vector<Object> objects;
+    std::vector<ObjectInfo> object_info;
+
     // size of subscene
     size_t total_element_size = 0;
     size_t total_vertex_size = 0;
@@ -105,62 +101,65 @@ struct Subscene {
     size_t element_count = 0;
 
   public:
-    void add(Mesh m) {
-        models.push_back(m);
-        objects.push_back(Object(m.vertexCount(), m.elementCount(), m.gl_draw_mode));
+    void add(Object obj) {
+        objects.push_back(obj);
+        object_info.push_back(ObjectInfo(obj.vertexCount(), obj.elementCount(), obj.gl_draw_mode));
 
         // update size
-        total_vertex_size += m.totalVertexSize();
-        total_element_size += m.totalElementSize();
-        vertex_count += m.vertexCount();
-        element_count += m.elementCount();
+        total_vertex_size += obj.totalVertexSize();
+        total_element_size += obj.totalElementSize();
+        vertex_count += obj.vertexCount();
+        element_count += obj.elementCount();
     }
 
-    void disable(const int i) {
-        if (objects.size() > i) {
-            objects[i].enabled = false;
+    void setEnabled(const size_t i, const bool enabled) {
+        if (object_info.size() > i) {
+            object_info[i].enabled = enabled;
         }
     }
 
-    void enableAll() {
-        for (auto& o : objects) {
-            o.enabled = true;
+    void setAllEnabled(const bool enabled) {
+        for (auto& obj_info : object_info) {
+            obj_info.enabled = enabled;
         }
     }
 
+    // GETTER
     size_t totalVertexSize() const { return total_vertex_size; }
     size_t totalElementSize() const { return total_element_size; }
     size_t vertexCount() const { return vertex_count; }
     size_t elementCount() const { return element_count; }
-    const std::vector<Mesh>& getModels() const { return models; }
+    size_t objectCount() const { return objects.size(); }
     const std::vector<Object>& getObjects() const { return objects; }
+    const std::vector<ObjectInfo>& getObjectInfo() const { return object_info; }
 };
+
+// ------------------------------------------------------------------------------------------------
 
 /**
  * @brief Create a list of elements that forms a sphere in gl.
  * @param radius WIP
  * @param accuracy number of stacks; 1/2 number of sectors
  */
-Mesh createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy);
+Object createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy);
 
 /**
  * @brief Create a list of elements that forms a satellite (cube) in gl.
  * @param position Current position of the satellite (in real world coordinates).
  */
-Mesh createSatellite();
+Object createSatellite();
 
 /**
  * @brief Create list of vertices that forms a line.
  */
-Mesh createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed = false);
+Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed = false);
 
 /**
  * @brief Create a list of vertices and colors that forms an orbit in gl.
  */
-Mesh createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center);
+Object createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center);
 
 } // namespace OpenGLPrimitives
-
 } // namespace dmsc
 
 #endif
