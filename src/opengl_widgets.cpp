@@ -62,17 +62,32 @@ void OpenGLWidget::init() {
     // Mouse click event
     glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
         OpenGLWidget* p = (OpenGLWidget*)glfwGetWindowUserPointer(window);
-        if (glfwGetWindowAttrib(window, GLFW_HOVERED) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
-            !ImGui::IsAnyItemHovered()) {
 
-            if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+        // ignore every input except left mouse button
+        if (button != GLFW_MOUSE_BUTTON_LEFT) {
+            return;
+        }
+
+        // if clicked inside the visualization (except UI), begin camera movement - if mouse button released (no matter
+        // where), stop it
+        switch (action) {
+        case GLFW_PRESS:
+            if (glfwGetWindowAttrib(window, GLFW_HOVERED) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
+                !ImGui::IsAnyItemHovered()) {
+                p->is_mouse_pressed = true;
                 double xpos, ypos;
                 glfwGetCursorPos(window, &xpos, &ypos);
                 p->mouse_start_location = glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos));
-            } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-                p->view *= p->camera_rotation;        // save rotation
-                p->camera_rotation = glm::mat4(1.0f); // reset to avoid applying it twice
             }
+            break;
+        case GLFW_RELEASE:
+            p->camera_rotation_angle += p->camera_rotation_angle_offset;
+            p->camera_rotation_angle_offset = glm::vec2(0.f);
+            p->camera_rotation_angle.x = std::fmod(p->camera_rotation_angle.x, static_cast<float>(M_PI) * 2.f);
+            p->is_mouse_pressed = false;
+            break;
+        default:
+            break;
         }
     });
 
@@ -80,40 +95,14 @@ void OpenGLWidget::init() {
     glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
         OpenGLWidget* p = (OpenGLWidget*)glfwGetWindowUserPointer(window);
 
-        if (glfwGetWindowAttrib(window, GLFW_HOVERED) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
-            !ImGui::IsAnyItemHovered()) {
-
-            int state = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
-            if (state == GLFW_PRESS) {
-                glm::vec2 m1 = p->mouse_start_location;
-                glm::vec2 m2 = glm::vec2(static_cast<float>(xpos), static_cast<float>(ypos));
-
-                int width, height;
-                glfwGetWindowSize(window, &width, &height);
-
-                // map coords to camera coords
-                int h = height;
-                int w = width;
-                m1.x = -2 * m1.x / w + 1;
-                m1.y = 2 * m1.y / h - 1;
-                m2.x = -2 * m2.x / w + 1;
-                m2.y = 2 * m2.y / h - 1;
-
-                // bound coords if mouse moves out of widget
-                m1 = glm::clamp(m1, -1.0f, 1.0f);
-                m2 = glm::clamp(m2, -1.0f, 1.0f);
-
-                // map screen coords to arcball
-                glm::vec3 a1 = glm::vec3(m1.x, m1.y, sqrt(1 - (m1.x * m1.x)));
-                glm::vec3 a2 = glm::vec3(m2.x, m2.y, sqrt(1 - (m2.x * m2.x)));
-                a1 = glm::normalize(a1);
-                a2 = glm::normalize(a2);
-
-                // calculate rotation
-                float rotation_angle = acos(std::min(1.0f, glm::dot(a1, a2)));
-                glm::vec3 rotation_axis = glm::inverse(glm::mat3(p->view)) * glm::cross(a2, a1);
-                p->camera_rotation = glm::rotate(glm::degrees(rotation_angle) * 0.025f, rotation_axis);
-            }
+        if (p->is_mouse_pressed) {
+            glm::vec2 diff = glm::vec2(xpos, ypos) - p->mouse_start_location;
+            int screen_width, screen_height;
+            glfwGetWindowSize(window, &screen_width, &screen_height);
+            // moving the mouse along half the screen size rotates the scene by 90 degrees
+            glm::vec2 angle = (static_cast<float>(M_PI) / 2.f) * diff / glm::vec2(screen_width / 2, -screen_height / 2);
+            // as long as the mouse button is not released, the changed rotation is applied as an offset
+            p->camera_rotation_angle_offset = angle;
         }
     });
 
@@ -281,18 +270,31 @@ void OpenGLWidget::recalculate() {
 
     // relative time
     float diff = ImGui::GetIO().DeltaTime;
-    // std::chrono::duration<double> diff = std::chrono::system_clock::now() - last_frame_time;
-    // last_frame_time = std::chrono::system_clock::now();
     if (!paused)
         sim_time += diff * sim_speed;
 
+    /* Camera circumnavigating around the central mass.
+     * Instead of performing two rotations for the camera, the rotation around the y-axis is done by rotation the entire
+     * world itself. */
+    glm::vec2 delta = camera_rotation_angle + camera_rotation_angle_offset;
+    // the earth can not be circumnavigated along the poles.
+    float max_angle_y = static_cast<float>(M_PI) / 2.f - 0.1f;
+    delta.y = glm::clamp(delta.y, -max_angle_y, max_angle_y);
+    camera_rotation_angle.y = glm::clamp(camera_rotation_angle.y, -max_angle_y, max_angle_y);
+
+    // calc view matrix
+    glm::mat4 camera_rotation = glm::rotate(glm::mat4(1.f), delta.y, glm::vec3(1.f, 0.f, 0.f));
+    glm::mat4 world_rotation = glm::rotate(glm::mat4(1), delta.x, glm::vec3(0.f, 1.f, 0.f));
+    glm::vec4 camera_position = camera_rotation * glm::vec4(camera_init_position, 0.f);
+    view = glm::lookAt(glm::vec3(camera_position), glm::vec3(0.0f, 0.0f, 0.0f),
+                       glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
+
     // Calc MVP
-    GLint vp[4];
-    glGetIntegerv(GL_VIEWPORT, vp);
-    projection = glm::perspective(45.0f, 1.0f * vp[2] / vp[3], 0.1f, 10.0f);
+    GLint viewport[4];
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    projection = glm::perspective(45.0f, 1.0f * viewport[2] / viewport[3], 0.1f, 10.0f);
     glm::mat4 scale = glm::scale(glm::vec3(1.0f) * zoom);
-    glm::mat4 modelview = view * camera_rotation * scale;
-    glm::mat4 projection = this->projection;
+    glm::mat4 modelview = view * world_rotation * scale;
     glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
 
     // push mvp to VBO
@@ -693,6 +695,11 @@ void OpenGLWidget::buildGUI() {
             sim_time = 0.f;
             sim_speed = 1;
             edge_subscene->setAllEnabled(true);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Reset camera")) {
+            camera_rotation_angle = glm::vec2(0.f);
+            zoom = 1.f;
         }
 
         ImGui::InputInt("Speed", &sim_speed);

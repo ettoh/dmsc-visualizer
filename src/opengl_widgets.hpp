@@ -85,13 +85,15 @@ class OpenGLWidget {
     GLuint vbo_uniforms = 0;
     GLuint texture_id = 0;
     GLint uniform_texture_location = 0;
-    // view
+    // view and camera
     float zoom = 1.0f;
+    glm::vec2 camera_rotation_angle_offset = glm::vec2(.0f, .0f);
+    glm::vec2 camera_rotation_angle = glm::vec2(.0f, .0f);
     glm::vec2 mouse_start_location = glm::vec2(0.0f);
+    glm::vec3 camera_init_position = glm::vec3(0.f, 0.f, 2.f);
+    bool is_mouse_pressed = false;
     glm::mat4 projection = glm::perspective(45.0f, 1.0f * 1280 / 720, 0.1f, 10.0f);
-    glm::mat4 camera_rotation = glm::mat4(1.0f);
-    glm::mat4 view = glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                                 glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
+    glm::mat4 view = glm::mat4(1.f);
     // scene
     int state = VisualisationState::EMPTY;
     PhysicalInstance problem_instance = PhysicalInstance();
