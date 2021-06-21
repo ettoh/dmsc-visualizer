@@ -92,7 +92,6 @@ Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center
 Object OpenGLPrimitives::createSatellite() {
     Object model = Object();
     model.gl_draw_mode = GL_TRIANGLES;
-    const float cube_length = 0.005f;
 
     return createSphere(0.005f, glm::vec3(0.0f), 10);
 }

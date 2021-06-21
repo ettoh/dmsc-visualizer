@@ -38,6 +38,7 @@ class OpenGLWidget {
     void recalculateEdges();
     void deleteInstance();
     void pushSceneToGPU();
+    void loadTextures(const char* uniform_name, GLint& tex_location, const char* file, GLuint& id);
 
     /**
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
@@ -83,8 +84,8 @@ class OpenGLWidget {
     // Handler
     GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
     GLuint vbo_uniforms = 0;
-    GLuint texture_id = 0;
-    GLint uniform_texture_location = 0;
+    GLuint texture_id[2] = {0, 0};
+    GLint uniform_texture_location[2] = {-1, -1};
     // view and camera
     float zoom = 1.0f;
     glm::vec2 camera_rotation_angle_offset = glm::vec2(.0f, .0f);

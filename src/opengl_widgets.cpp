@@ -157,22 +157,29 @@ void OpenGLWidget::init() {
     glUniformBlockBinding(earth_prog, index, 1);
 
     // load textures
+    loadTextures("earth_day", uniform_texture_location[0], "textures/earth_day.jpg", texture_id[0]);
+    loadTextures("earth_water", uniform_texture_location[1], "textures/earth_water.jpg", texture_id[1]);
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::loadTextures(const char* uniform_name, GLint& tex_location, const char* file, GLuint& id) {
     int w, h;
     int channels;
     unsigned char* image;
-    const char* filename = "textures/earth_day.jpg";
     stbi_set_flip_vertically_on_load(1);
-    image = stbi_load(filename, &w, &h, &channels, STBI_rgb);
+    image = stbi_load(file, &w, &h, &channels, STBI_rgb);
 
     if (image == nullptr) {
-        printf("Failed to load image %s\n", filename);
+        printf("Failed to load image %s\n", file);
         assert(false);
         exit(EXIT_FAILURE);
     }
 
-    glGenTextures(1, &texture_id);
-    glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glGenTextures(1, &id);
+    glBindTexture(GL_TEXTURE_2D, id);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0,
                  GL_RGB, // internalformat
                  w, h, 0,
@@ -181,9 +188,8 @@ void OpenGLWidget::init() {
     stbi_image_free(image);
 
     // bind texture uniform
-    const char* uniform_name = "texture"; // name of uniform in shader
-    uniform_texture_location = glGetUniformLocation(earth_prog, uniform_name);
-    if (uniform_texture_location == -1) {
+    tex_location = glGetUniformLocation(earth_prog, uniform_name);
+    if (tex_location == -1) {
         std::cout << "Could not bind uniform " << uniform_name << std::endl;
     }
 }
@@ -193,7 +199,7 @@ void OpenGLWidget::init() {
 void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) {
     visualizeInstance(instance);
     sim_time = t0;
-    glm::vec3 clear_color = glm::vec3(0.15f, 0.15f, 0.15f);
+    glm::vec3 clear_color = glm::vec3(0.03f);
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -221,7 +227,7 @@ void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) {
 
 void OpenGLWidget::show(const PhysicalInstance& instance, const Solution& solution) {
     visualizeSolution(instance, solution);
-    glm::vec3 clear_color = glm::vec3(0.15f, 0.15f, 0.15f);
+    glm::vec3 clear_color = glm::vec3(0.03f);
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -250,10 +256,14 @@ void OpenGLWidget::show(const PhysicalInstance& instance, const Solution& soluti
 void OpenGLWidget::renderScene() {
     recalculate();
 
-    // bind texture
+    // bind textures
     glActiveTexture(GL_TEXTURE0);
-    glUniform1i(uniform_texture_location, /*GL_TEXTURE*/ 0);
-    glBindTexture(GL_TEXTURE_2D, texture_id);
+    glUniform1i(uniform_texture_location[0], /*GL_TEXTURE*/ 0);
+    glBindTexture(GL_TEXTURE_2D, texture_id[0]);
+
+    glActiveTexture(GL_TEXTURE1);
+    glUniform1i(uniform_texture_location[1], /*GL_TEXTURE*/ 1);
+    glBindTexture(GL_TEXTURE_2D, texture_id[1]);
 
     // Draw the scene:
     for (const Subscene& s : scene) {
@@ -272,6 +282,10 @@ void OpenGLWidget::recalculate() {
     float diff = ImGui::GetIO().DeltaTime;
     if (!paused)
         sim_time += diff * sim_speed;
+
+    // sun rotation
+    float sun_angle = sim_time * 0.000290f; // 6h -> one turn around the earth
+    glm::mat4 sun_rotation = glm::rotate(glm::mat4(1.f), sun_angle, glm::vec3(0.f, 1.f, 0.f));
 
     /* Camera circumnavigating around the central mass.
      * Instead of performing two rotations for the camera, the rotation around the y-axis is done by rotation the entire
@@ -294,15 +308,17 @@ void OpenGLWidget::recalculate() {
     glGetIntegerv(GL_VIEWPORT, viewport);
     projection = glm::perspective(45.0f, 1.0f * viewport[2] / viewport[3], 0.1f, 10.0f);
     glm::mat4 scale = glm::scale(glm::vec3(1.0f) * zoom);
-    glm::mat4 modelview = view * world_rotation * scale;
-    glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
+    glm::mat4 model = world_rotation;
+    // glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
 
     // push mvp to VBO
     glBindBuffer(GL_UNIFORM_BUFFER, vbo_uniforms);
-    glBufferData(GL_UNIFORM_BUFFER, 3 * sizeof(glm::mat4), 0, GL_STREAM_DRAW);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(modelview));
-    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
-    glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(normal_proj));
+    glBufferData(GL_UNIFORM_BUFFER, 5 * sizeof(glm::mat4), 0, GL_STREAM_DRAW);
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(model));
+    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
+    glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
+    glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(scale));
+    glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(sun_rotation));
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // dynamic part of scene
@@ -762,7 +778,9 @@ void OpenGLWidget::destroy() {
     deleteInstance();
     glDeleteProgram(basic_program);
     glDeleteProgram(satellite_prog);
-    glDeleteTextures(1, &texture_id);
+    glDeleteTextures(1, &texture_id[0]);
+    glDeleteTextures(1, &texture_id[1]);
+    glDeleteTextures(1, &texture_id[2]);
 
     glfwDestroyWindow(window);
     glfwTerminate();
