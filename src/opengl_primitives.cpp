@@ -99,19 +99,15 @@ Object OpenGLPrimitives::createSatellite() {
 // ------------------------------------------------------------------------------------------------
 
 Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
-    int number_of_sides = 100;
-
+    int number_of_sides = 130;
     Object model = Object();
     model.gl_draw_mode = GL_LINE_STRIP;
 
     for (int i = 0; i <= number_of_sides; i++) {
         VertexData vertex = VertexData();
-        float t = i * orbit.getPeriod() / number_of_sides;
-        glm::vec3 cartesian_coords = orbit.cartesian_coordinates(t) / scale;
-        // Vertices
+        float true_anomaly = i * 2.f * static_cast<float>(M_PI) / number_of_sides;
+        glm::vec3 cartesian_coords = orbit.cartesian_coordinates_angle(true_anomaly) / scale;
         vertex.position = center + cartesian_coords;
-
-        // Colors
         vertex.color = glm::vec3(.5f);
         model.vertices.push_back(vertex);
     }
