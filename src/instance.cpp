@@ -50,48 +50,48 @@ Instance::Instance(const std::string& file) {
     }
 
     while (std::getline(is, line_cache)) {
-        if (line_cache == "===END===") {
+        if (line_cache == "===END===" && is.peek() != EOF) {
             mode++;
             continue;
         }
 
-        // split line by delimiter ','
+        // split line by delimiter
         std::string value_cache = "";
         std::stringstream ss(line_cache);
 
         try {
             switch (mode) {
             case READ_INIT:
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 cm.radius_central_mass = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 cm.gravitational_parameter = std::stof(value_cache);
                 break;
             case READ_ORBIT: {
                 StateVector sv;
-                std::getline(ss, value_cache, ',');
-                sv.argument_periapsis = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
+                sv.height_perigee = std::stof(value_cache);
+                std::getline(ss, value_cache, ';');
                 sv.eccentricity = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 sv.raan = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 sv.argument_periapsis = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 sv.inclination = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 sv.rotation_speed = std::stof(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 sv.initial_true_anomaly = std::stof(value_cache);
                 satellites.push_back(sv);
                 break;
             }
             case READ_EDGE: {
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 uint32_t from_idx = std::stoi(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 uint32_t to_idx = std::stoi(value_cache);
-                std::getline(ss, value_cache, ',');
+                std::getline(ss, value_cache, ';');
                 int type = std::stoi(value_cache);
                 Edge e = Edge(from_idx, to_idx, static_cast<EdgeType>(type));
                 edges.push_back(e); // TODO copied by value? -> scope? || should be ok ...
@@ -117,29 +117,29 @@ void Instance::save(const std::string& file) const {
 
     /** File format:
      *
-     * radius, gravitational parameter
+     * radius; gravitational parameter
      * ===END===
-     * height_perigee, eccentricity, raan, perigee, inclination, rotation speed, initial_true_anomaly
+     * height_perigee; eccentricity; raan; perigee; inclination; rotation speed; initial_true_anomaly
      * [...]
      * ===END===
-     * from_vertex id #1, to_vertex id #2, type
+     * from_vertex id #1; to_vertex id #2; type
      * [...]
      */
 
     // instance properties
-    fs << cm.radius_central_mass << ",";
+    fs << cm.radius_central_mass << ";";
     fs << cm.gravitational_parameter << "\n";
     fs << "===END===\n";
 
     // orbits
     for (size_t i = 0; i < satellites.size(); i++) {
         const StateVector& orbit = satellites[i];
-        fs << orbit.height_perigee << ",";
-        fs << orbit.eccentricity << ",";
-        fs << orbit.raan << ",";
-        fs << orbit.argument_periapsis << ",";
-        fs << orbit.inclination << ",";
-        fs << orbit.rotation_speed << ",";
+        fs << orbit.height_perigee << ";";
+        fs << orbit.eccentricity << ";";
+        fs << orbit.raan << ";";
+        fs << orbit.argument_periapsis << ";";
+        fs << orbit.inclination << ";";
+        fs << orbit.rotation_speed << ";";
         fs << satellites[i].initial_true_anomaly << "\n";
     }
     fs << "===END===\n";
@@ -147,8 +147,8 @@ void Instance::save(const std::string& file) const {
     // Edges
     for (size_t i = 0; i < edges.size(); i++) {
         const Edge& e = edges[i];
-        fs << e.from_idx << ",";
-        fs << e.to_idx << ",";
+        fs << e.from_idx << ";";
+        fs << e.to_idx << ";";
         fs << static_cast<int>(e.type) << "\n";
     }
     fs.close();

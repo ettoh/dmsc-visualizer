@@ -1,5 +1,5 @@
 # DMSC Visualizer
-A library to visualize orbital movements of a satellite network in 3D using [OpenGL®](https://www.khronos.org/opengl/) 3.3.\
+A library to visualize (keplerian) orbital movements of a satellite network in 3D using [OpenGL®](https://www.khronos.org/opengl/) 3.3.\
 Optimization algorithms to minimize the time needed to perform a set of scheduled intersatellite communications are implemented. In particular, the central mass as an obstacle and the necessary turn costs of the satellites are taken into account (algorithmic problem: *Dynamic Minimum Scan Cover*).
 
 ...
@@ -25,6 +25,14 @@ git submodule update
 
 ## How to use
 soon ...
+
+## Real world instances
+The provided real world instances are based on the idealized structure of the corresponding satellite constellation. In particular, the state vectors do not correspond to a more precisely specified point in (real)time. All instances do not contain any intersatellite links.
+
+|instance    |# satellites|orbital altitude|
+|:----------:|:----------:|:--------------:|
+|Galileo     |30          |23.222 km (MEO)  |
+|Iridium Next|66          |780 km (LEO)     |
 
 ## Credits / Attributions
 * The textures used for the earth are from [NASA - Visible Earth](https://visibleearth.nasa.gov)
