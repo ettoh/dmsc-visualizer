@@ -2,6 +2,8 @@
 A library to visualize (keplerian) orbital movements of a satellite network in 3D using [OpenGL®](https://www.khronos.org/opengl/) 3.3.\
 Optimization algorithms to minimize the time needed to perform a set of scheduled intersatellite communications are implemented. In particular, the central mass as an obstacle and the necessary turn costs of the satellites are taken into account (algorithmic problem: *Dynamic Minimum Scan Cover*).
 
+![example instance](https://raw.githubusercontent.com/wiki/mc-thulu/dmsc-visualizer/web/instance.gif)
+
 ...
 
 ## Download
