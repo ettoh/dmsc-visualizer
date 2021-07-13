@@ -10,7 +10,8 @@
 namespace dmsc {
 
 /**
- * @brief TODO
+ * @brief Necessary parameters to describe the central mass.
+ * If the central mass is the earth, you can use the default values.
  */
 struct CentralMass {
     float gravitational_parameter = 398599; // [km^3 / s^2] (default: earth)
@@ -34,16 +35,21 @@ struct StateVector {
     float rotation_speed = .005f;      // [rad/sec] speed of rotation (for the satellite to orientate)
     float initial_true_anomaly = 0.0f; // [rad]
 
-    /**
-     * @brief Return true if the shape and position of two keplarian orbits are equal. The initial true anomaly is not
-     * taken into account!
-     */
     bool operator==(const StateVector& e) {
         return height_perigee == e.height_perigee && eccentricity == e.eccentricity && inclination == e.inclination &&
-               argument_periapsis == e.argument_periapsis && raan == e.raan && rotation_speed == e.rotation_speed;
-    } // TODO test
+               argument_periapsis == e.argument_periapsis && raan == e.raan && rotation_speed == e.rotation_speed &&
+               initial_true_anomaly == e.initial_true_anomaly;
+    }
 
-    bool operator!=(const StateVector& e) { return !(*this == e); } // TODO test
+    bool operator!=(const StateVector& e) { return !(*this == e); }
+
+    /**
+     * @brief Returns true, if the two state vectors describe the same orbit (i.e. same shape and same location).
+     */
+    bool isSameOrbit(const StateVector& e) const {
+        return height_perigee == e.height_perigee && eccentricity == e.eccentricity && inclination == e.inclination &&
+               argument_periapsis == e.argument_periapsis && raan == e.raan;
+    }
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -154,18 +160,6 @@ class Satellite {
     float period;             // [sec]
     float mean_angular_speed; // [rad / sec]
     float semi_major_axis;    // [km]
-};
-
-// ------------------------------------------------------------------------------------------------
-
-// TODO delete
-struct Orientation {
-    glm::vec3 direction = glm::vec3(0.0f);
-    float start = .0f;
-    // float end = -1.0f;
-    friend bool operator<(const Orientation& e, const Orientation& f) { return e.start < f.start; }
-    Orientation() = default;
-    Orientation(const float start) { this->start = start; }
 };
 
 } // namespace dmsc

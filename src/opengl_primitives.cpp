@@ -108,7 +108,7 @@ Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, 
         float true_anomaly = i * 2.f * static_cast<float>(M_PI) / number_of_sides;
         glm::vec3 cartesian_coords = orbit.cartesian_coordinates_angle(true_anomaly) / scale;
         vertex.position = center + cartesian_coords;
-        vertex.color = glm::vec3(.5f);
+        vertex.color = glm::vec3(.35f);
         model.vertices.push_back(vertex);
     }
 

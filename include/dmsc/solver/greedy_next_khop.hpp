@@ -26,7 +26,7 @@ class GreedyNextKHop : public Solver {
 
     /**
      * @brief Breadth-first search
-     * @return first: if true, at least one path was found; second: adjacency matrix
+     * @return first: boolean (if true, at least one path was found); second: adjacency matrix
      */
     std::pair<bool, AdjacencyMatrix> findPaths(const uint32_t from, const uint32_t to) const;
 };

@@ -12,8 +12,7 @@ namespace dmsc {
 using ScheduledCommunication = std::pair<uint32_t, uint32_t>;
 
 /**
- * @brief TODO
- *
+ * @brief Which satellites can communicate with each other and at what cost.
  */
 class AdjacencyMatrix {
   public:
@@ -59,11 +58,13 @@ struct Edge {
 // ------------------------------------------------------------------------------------------------
 
 /**
- * @brief TODO
- *
+ * @brief Contains all the necessary data for the movement of satellites and graphs that define the connections between
+ * satellites. No additional calculations are performed. You can change everything anytime you want.
+ * All derived values for the visualization and solver are only calculated when the instance is converted into a
+ * PhysicalInstance.
  */
 struct Instance {
-    CentralMass cm;
+    CentralMass cm; // Properties of the central mass
     std::vector<StateVector> satellites;
     std::vector<Edge> edges;
 
@@ -88,8 +89,9 @@ struct Instance {
 // ------------------------------------------------------------------------------------------------
 
 /**
- * @brief TODO
- *
+ * @brief Takes an instance and calculate additional values, that are needed in order to evaluate this instance
+ * (visualization and solver). Once this is done, you cannot change the resulting physical instance. Don't try to get
+ * around this - you could get wrong result without noticing!
  */
 class PhysicalInstance {
   public:
@@ -109,7 +111,7 @@ class PhysicalInstance {
     // GETTER
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
     const std::vector<Satellite>& getSatellites() const { return satellites; }
-    const std::vector<InterSatelliteLink>& getISL() const { return intersatellite_links; }
+    const std::vector<InterSatelliteLink>& getISLs() const { return intersatellite_links; }
     const AdjacencyMatrix& getAdjacencyMatrix() const { return adjacency_matrix; }
     size_t islCount() const { return intersatellite_links.size(); }
     size_t satelliteCount() const { return satellites.size(); }

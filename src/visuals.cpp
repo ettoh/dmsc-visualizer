@@ -10,7 +10,6 @@ void visualizeInstance(const Instance& instance, const float t0) { visualizeInst
 // ------------------------------------------------------------------------------------------------
 
 void visualizeInstance(const PhysicalInstance& instance, const float t0) {
-    // TODO new thread?
     OpenGLWidget gl;
     gl.show(instance, t0);
 }

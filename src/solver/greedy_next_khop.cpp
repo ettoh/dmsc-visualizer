@@ -39,13 +39,13 @@ Solution GreedyNextKHop::solve() {
         }
     }
 
-    // choose best edge in each iteration
+    // choose the best edge in each iteration
     while (remaining_communications.size() > 0) {
         uint32_t chosen_communication = ~0u;
         uint32_t chosen_neighbour = ~0u;
         float t_next = INFINITY; // absolute time
 
-        // find best edge depending on the time passed
+        // find the best edge depending on the time passed
         for (uint32_t i = 0; i < remaining_communications.size(); i++) {
             const Communication& com = remaining_communications[i];
 
@@ -54,7 +54,7 @@ Solution GreedyNextKHop::solve() {
             bool path_possible = false; // is there at least one edge we can use? (will be visible in the future)
             for (uint32_t neighbour = 0u; neighbour < possible_neighbours.size(); neighbour++) {
                 if (possible_neighbours[neighbour].weight == 1u) { // this vertex is part of a possible path
-                    const InterSatelliteLink& link = instance.getISL()[possible_neighbours[neighbour].isl_idx];
+                    const InterSatelliteLink& link = instance.getISLs()[possible_neighbours[neighbour].isl_idx];
                     float next_communication = nextCommunication(link, curr_time);
 
                     // will the edge become visible on the future?
@@ -76,18 +76,14 @@ Solution GreedyNextKHop::solve() {
             }
 
             // we cant continue the current path
-            // TODO restart? different path?
             if (!path_possible) {
                 remaining_communications.erase(remaining_communications.begin() + i);
                 i--; // the size of the remaining communications just reduced by 1
             }
         }
 
-        // refresh orientation of chosen satellites
-        // todo only recalculate needed satellites ...
-
         // no "next" edge was found
-        if(chosen_communication == ~0u || chosen_neighbour == ~0u || t_next == INFINITY){
+        if (chosen_communication == ~0u || chosen_neighbour == ~0u || t_next == INFINITY) {
             break;
         }
 
@@ -97,7 +93,7 @@ Solution GreedyNextKHop::solve() {
         com.forward_idx = chosen_neighbour;
 
         // add edge to solution
-        const InterSatelliteLink* isl = &instance.getISL()[isl_idx];
+        const InterSatelliteLink* isl = &instance.getISLs()[isl_idx];
         scan_cover.insert({isl_idx, t_next});
 
         // if chosen communication is done now, remove it
@@ -107,10 +103,8 @@ Solution GreedyNextKHop::solve() {
 
         // update satellite orientations
         EdgeOrientation new_orientations = isl->getOrientation(t_next);
-        satellite_orientation[&isl->getV1()] = TimelineEvent<glm::vec3>(
-            new_orientations.sat1.start, new_orientations.sat1.start, new_orientations.sat1.direction);
-        satellite_orientation[&isl->getV2()] = TimelineEvent<glm::vec3>(
-            new_orientations.sat2.start, new_orientations.sat2.start, new_orientations.sat2.direction);
+        satellite_orientation[&isl->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.first);
+        satellite_orientation[&isl->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.second);
 
         // update time
         curr_time = t_next;
@@ -128,7 +122,6 @@ Solution GreedyNextKHop::solve() {
 
 // ------------------------------------------------------------------------------------------------
 
-// return a directed graph (origin_idx -> destination_idx)
 std::pair<bool, AdjacencyMatrix> GreedyNextKHop::findPaths(const uint32_t origin_idx,
                                                            const uint32_t destination_idx) const {
     // store path in correct order and sorted (to be able to find already visited vertices)

@@ -3,7 +3,7 @@
 namespace dmsc {
 namespace solver {
 
-// TODO does instance is valid for this solver?
+// TODO are the instance and solver compatible?
 // greedy next ignores the schedules communications - it scans all isl
 Solution GreedyNext::solve() {
     // start time for computation time
@@ -16,19 +16,19 @@ Solution GreedyNext::solve() {
 
     // select edges for computation
     std::vector<const InterSatelliteLink*> remaining_edges;
-    for (const InterSatelliteLink& e : instance.getISL()) {
+    for (const InterSatelliteLink& e : instance.getISLs()) {
         float t_communication = nextCommunication(e, 0.0f);
         if (t_communication < INFINITY) {
             remaining_edges.push_back(&e);
         }
     }
 
-    // choose best edge in each iteration.
+    // choose the best edge in each iteration.
     while (remaining_edges.size() > 0) {
         int best_edge_pos = 0;   // position in remaining edges
         float t_next = INFINITY; // absolute time
 
-        // find best edge depending on the time passed
+        // find the best edge depending on the time passed
         for (size_t i = 0; i < remaining_edges.size(); i++) {
             const InterSatelliteLink& e = *remaining_edges.at(i);
             float next_communication = nextCommunication(e, curr_time);
@@ -44,17 +44,14 @@ Solution GreedyNext::solve() {
                 break;
         }
 
-        // refresh orientation of chosen satellites
-        // todo only recalculate needed satellites ...
+        // refresh orientation of chosen satellites.
         const InterSatelliteLink* e = remaining_edges.at(best_edge_pos);
         EdgeOrientation new_orientations = e->getOrientation(t_next);
-        satellite_orientation[&e->getV1()] = TimelineEvent<glm::vec3>(
-            new_orientations.sat1.start, new_orientations.sat1.start, new_orientations.sat1.direction);
-        satellite_orientation[&e->getV2()] = TimelineEvent<glm::vec3>(
-            new_orientations.sat2.start, new_orientations.sat2.start, new_orientations.sat2.direction);
+        satellite_orientation[&e->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.first);
+        satellite_orientation[&e->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.second);
 
         // map position in remaining edges to position in all edges
-        std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.getISL()[0];
+        std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.getISLs()[0];
         // add edge
         scan_cover.insert({static_cast<uint32_t>(edge_index), t_next});
         remaining_edges.erase(remaining_edges.begin() + best_edge_pos);

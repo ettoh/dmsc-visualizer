@@ -359,7 +359,7 @@ std::vector<Object> OpenGLWidget::createLines() {
 
     // build ISL network
     for (uint32_t i = 0; i < problem_instance.islCount(); i++) {
-        const InterSatelliteLink& edge = problem_instance.getISL().at(i);
+        const InterSatelliteLink& edge = problem_instance.getISLs().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 color = glm::vec3(1.f);
@@ -448,7 +448,7 @@ void OpenGLWidget::recalculateEdges() {
     // iterate through scan cover
     if (state == SOLUTION) {
         // hide all edges that have already been scanned
-        for (uint32_t i = 0; i < problem_instance.getISL().size(); i++) {
+        for (uint32_t i = 0; i < problem_instance.getISLs().size(); i++) {
             auto range = scan_cover.equal_range(i);
             if (range.first == scan_cover.end()) {
                 edge_subscene->setEnabled(i, false); // edge is not part of the scan cover -> hide it
@@ -624,20 +624,20 @@ void OpenGLWidget::visualizeSolution(const PhysicalInstance& instance, const Sol
 
     // build timeline for satellite orientations and edge order
     for (const auto& scan : solution.scan_cover) {
-        if (scan.first >= problem_instance.getISL().size()) {
+        if (scan.first >= problem_instance.getISLs().size()) {
             printf("Solution and instance does not match!\n");
             assert(false);
             exit(EXIT_FAILURE);
         }
 
         float t = scan.second; // time when edge is scheduled
-        const InterSatelliteLink& isl = problem_instance.getISL().at(scan.first);
+        const InterSatelliteLink& isl = problem_instance.getISLs().at(scan.first);
         EdgeOrientation needed_orientation = isl.getOrientation(t);
 
         // add corresponding events for both satellites where they have to face in the needed direction in order to
         // perform the scan
-        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation.sat1.direction);
-        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, needed_orientation.sat2.direction);
+        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation.first);
+        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, needed_orientation.second);
         bool res_1 = satellite_orientations[&isl.getV1()].insert(orientation_sat1);
         bool res_2 = satellite_orientations[&isl.getV2()].insert(orientation_sat2);
 
@@ -859,8 +859,9 @@ GLuint OpenGLWidget::createProgram(const GLuint vertex_shader, const GLuint frag
     glLinkProgram(program);
     glGetProgramiv(program, GL_LINK_STATUS, &link_ok);
     if (!link_ok) {
-        // todo unified error handling
-        throw std::runtime_error("Error in glLinkProgram");
+        printf("Error in glLinkProgram\n");
+        assert(false);
+        exit(EXIT_FAILURE);
     }
 
     return program;

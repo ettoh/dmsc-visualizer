@@ -8,11 +8,7 @@
 
 namespace dmsc {
 
-// TODO delete
-struct EdgeOrientation {
-    Orientation sat1 = Orientation();
-    Orientation sat2 = Orientation();
-};
+using EdgeOrientation = std::pair<glm::vec3, glm::vec3>;
 
 class InterSatelliteLink {
   public:
@@ -64,29 +60,29 @@ class InterSatelliteLink {
     }
 
     /**
-     * @brief Check if there is enough time for both satellites to face each other for a scan at time t.
-     * @param origin Start alignment of both satellites and the time they changed for the last time.
-     * @return True, if alignment can be performed.
+     * @brief Returns true, if there is enough time for both satellites to face each other at the given time.
+     *
+     * @param sat1 & sat 2 Direction in which a satellite is facing and the time when it changed this direction for
+     * the last time.
+     * @param t [sec] Time when the satellites have to face each other.
      */
-    // TODO rework behavior if TimelineEvent is "invalid" - what if satellite was not part of a communication before ...
     bool canAlign(const TimelineEvent<glm::vec3>& sat1, const TimelineEvent<glm::vec3>& sat2, const float t) const {
-        // TODO rework
         EdgeOrientation target = getOrientation(t);
         float angle_sat1 = .0f;
         float angle_sat2 = .0f;
-        float time_sat1 = 0.f;
-        float time_sat2 = 0.f;
+        float time_sat1 = .0f;
+        float time_sat2 = .0f;
 
         // calc angle between orientations; direction vectors must be length 1
         if (sat1.isValid()) {
-            angle_sat1 = std::acos(glm::dot(sat1.data, target.sat1.direction)); // [rad]
+            angle_sat1 = std::acos(glm::dot(sat1.data, target.first)); // [rad]
             time_sat1 = sat1.t_begin;
         } else {
             time_sat1 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
         }
 
         if (sat2.isValid()) {
-            angle_sat2 = std::acos(glm::dot(sat2.data, target.sat2.direction)); // [rad]
+            angle_sat2 = std::acos(glm::dot(sat2.data, target.second)); // [rad]
             time_sat2 = sat2.t_begin;
         } else {
             time_sat2 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
@@ -107,17 +103,13 @@ class InterSatelliteLink {
     /**
      * @brief Calculate the directions for both satellites to face each other.
      * @param t [sec] time
-     * @return Two direction vectors and the time when they face each other.
+     * @return Two direction vectors at the time when they face each other.
      */
     EdgeOrientation getOrientation(const float time) const {
-        EdgeOrientation result;
         glm::vec3 sat1 = v1->cartesian_coordinates(time);
         glm::vec3 sat2 = v2->cartesian_coordinates(time);
-        result.sat1.direction = glm::normalize(sat2 - sat1);
-        result.sat2.direction = glm::normalize(sat1 - sat2);
-        result.sat1.start = time;
-        result.sat2.start = time;
-        return result;
+
+        return {glm::normalize(sat2 - sat1), glm::normalize(sat1 - sat2)};
     }
 
     // GETTER

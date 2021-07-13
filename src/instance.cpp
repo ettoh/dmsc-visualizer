@@ -94,7 +94,7 @@ Instance::Instance(const std::string& file) {
                 std::getline(ss, value_cache, ';');
                 int type = std::stoi(value_cache);
                 Edge e = Edge(from_idx, to_idx, static_cast<EdgeType>(type));
-                edges.push_back(e); // TODO copied by value? -> scope? || should be ok ...
+                edges.push_back(e);
                 break;
             }
             default:
@@ -112,7 +112,9 @@ Instance::Instance(const std::string& file) {
 void Instance::save(const std::string& file) const {
     std::ofstream fs(file);
     if (fs.fail()) {
-        return; // TODO error
+        printf("File %s could not be created. \n", file);
+        assert(false);
+        exit(EXIT_FAILURE);
     }
 
     /** File format:
@@ -177,10 +179,6 @@ PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
 // ------------------------------------------------------------------------------------------------
 
 PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
-    // TODO validate input
-    // TODO loops?
-    // TODO double edges?
-    // TODO double satellites?
     cm = raw_instance.cm;
 
     // Satellites
@@ -191,8 +189,11 @@ PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
 
     // Edges
     for (const auto& e : raw_instance.edges) {
-        if (e.from_idx >= satellites.size() || e.to_idx >= satellites.size())
-            throw std::runtime_error("No such satellite in given vector.");
+        if (e.from_idx >= satellites.size() || e.to_idx >= satellites.size()) {
+            printf("No such satellite in given vector (from %u, to %u). \n", e.from_idx, e.to_idx);
+            assert(false);
+            exit(EXIT_FAILURE);
+        }
 
         switch (e.type) {
         case EdgeType::INTERSATELLITE_LINK:
