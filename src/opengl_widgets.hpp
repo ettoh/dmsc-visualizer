@@ -14,6 +14,7 @@
 namespace dmsc {
 
 constexpr auto PI2 = 2 * M_PI; // 2pi
+constexpr GLuint MAX_ELEMENT_ID = 65535;
 
 class OpenGLWidget {
   public:

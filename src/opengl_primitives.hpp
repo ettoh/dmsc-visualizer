@@ -124,6 +124,11 @@ struct Subscene {
         }
     }
 
+    void clearObjectData(){
+        objects.clear();
+        objects.shrink_to_fit();
+    }
+
     // GETTER
     size_t totalVertexSize() const { return total_vertex_size; }
     size_t totalElementSize() const { return total_element_size; }

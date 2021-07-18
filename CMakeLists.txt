@@ -19,7 +19,6 @@ if(MSVC)
         /wd4458 # declaration of 'identifier' hides class member
         /wd4100 # 'identifier' : unreferenced formal parameter
     )
-    target_link_options(dmsc PUBLIC /NODEFAULTLIB:MSVCRT)
 else()
   target_compile_options(dmsc PRIVATE -Wall -Wextra -pedantic)
 endif()

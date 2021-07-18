@@ -112,7 +112,7 @@ Instance::Instance(const std::string& file) {
 void Instance::save(const std::string& file) const {
     std::ofstream fs(file);
     if (fs.fail()) {
-        printf("File %s could not be created. \n", file);
+        printf("File %s could not be created. \n", file.c_str());
         assert(false);
         exit(EXIT_FAILURE);
     }

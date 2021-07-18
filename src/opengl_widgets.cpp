@@ -126,6 +126,9 @@ void OpenGLWidget::init() {
     ImGui_ImplOpenGL3_Init(glsl_version);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_PRIMITIVE_RESTART);
+    glLineWidth(1.5f);
+    glPrimitiveRestartIndex(MAX_ELEMENT_ID);
 
     // OpenGL-Version
     std::cout << "Open GL 3.3 needed. Given: ";
@@ -330,25 +333,19 @@ void OpenGLWidget::recalculate() {
 
 void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
-    std::vector<GLfloat> positions;
-    size_t nmbr_vertecies = 0;
-    if (problem_instance.getSatellites().size() != 0) // size() will fail if no orbits in instance
-        // assume that all satellites have the same amount of vertices
-        nmbr_vertecies = satellite_subscene->getObjectInfo().at(0).number_vertices;
+    std::vector<glm::mat4> transformation;
+    transformation.reserve(problem_instance.getSatellites().size());
+
     for (const Satellite& o : problem_instance.getSatellites()) {
-        glm::vec3 offset = o.cartesian_coordinates(sim_time) / real_world_scale;
-        for (size_t i = 0; i < nmbr_vertecies; i++) {
-            positions.push_back(offset.x);
-            positions.push_back(offset.y);
-            positions.push_back(offset.z);
-        }
+        glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
+        transformation.push_back(glm::translate(position));
     }
 
     // push data to VBO
-    if (positions.size() != 0) {
-        size_t size_satellite_pos = sizeof(positions[0]) * positions.size();
-        glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene->vbo_dynamic);                   // set active
-        glBufferData(GL_ARRAY_BUFFER, size_satellite_pos, &positions[0], GL_STREAM_DRAW); // push data
+    if (transformation.size() != 0) {
+        size_t size_transformation = sizeof(transformation[0]) * transformation.size();
+        glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene->vbo_dynamic);                         // set active
+        glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformation[0], GL_STREAM_DRAW); // push data
     }
 }
 
@@ -473,6 +470,13 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     glUseProgram(subscene.program);
     glBindVertexArray(subscene.vao);
 
+    if (&subscene == satellite_subscene) {
+        glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLint>(subscene.elementCount()), GL_UNSIGNED_SHORT,
+                                (void*)(0), problem_instance.getSatellites().size());
+        glBindVertexArray(0);
+        return;
+    }
+
     // draw each object individually
     size_t offset = 0;
     size_t offset_elements = 0;
@@ -546,15 +550,34 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     Object sphere =
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     earth_subscene.add(sphere);
+    Object all_orbits;
+    all_orbits.gl_draw_mode = GL_LINE_LOOP;
     for (const Satellite& o : problem_instance.getSatellites()) {
         // Orbit
         Object orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
-        static_subscene.add(orbit);
 
-        // Satellite
-        Object satellite = OpenGLPrimitives::createSatellite();
-        satellite_subscene.add(satellite); // position is later set by shader
+        // the number of vertices is limited by the range of GL_unsigned_short (type of indices)
+        if (all_orbits.vertices.size() + orbit.vertices.size() >= MAX_ELEMENT_ID) {
+            static_subscene.add(all_orbits);
+            all_orbits = Object();
+            all_orbits.gl_draw_mode = GL_LINE_LOOP;
+        }
+
+        size_t offset = all_orbits.vertices.size(); // index 0 in orbit object has to refer the correct vertex
+        all_orbits.vertices.insert(all_orbits.vertices.end(), orbit.vertices.begin(), orbit.vertices.end());
+        all_orbits.elements.reserve(all_orbits.elements.capacity() + orbit.elements.size());
+        all_orbits.elements.push_back(MAX_ELEMENT_ID); // restart GL_LINE_LOOP
+
+        for (const auto& i : orbit.elements) {
+            all_orbits.elements.push_back(i + static_cast<GLushort>(offset));
+        }
     }
+    static_subscene.add(all_orbits);
+
+    // Satellite
+    // one sphere is enough - it will be reused (instanced rendering)
+    Object satellite = OpenGLPrimitives::createSatellite();
+    satellite_subscene.add(satellite); // position is later set by shader
 
     // 1.2 Edges & orientations
     std::vector<Object> line_meshes = createLines();
@@ -563,6 +586,12 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     }
 
     pushSceneToGPU();
+
+    // delete vertex data (it is now stored in the gpu memory)
+    earth_subscene.clearObjectData();
+    static_subscene.clearObjectData();
+    satellite_subscene.clearObjectData();
+    edge_subscene.clearObjectData();
 
     // 2. define format for data
     /* Create VAO that handle the vbo's and it's format.
@@ -596,9 +625,20 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
     glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene.vbo_static);
     glEnableVertexAttribArray(0); // vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene.vbo_dynamic); // satellite positions
+    glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene.vbo_dynamic); // satellite transformation
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(3);
+    glEnableVertexAttribArray(4);
+    // maximum size for vertexAttr is 4. So we split the 4x4matrix into 4x vec4
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(0));
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 4));
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 8));
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 12));
+    glVertexAttribDivisor(1, 1); // update transformation attr. every 1 instance instead of every vertex
+    glVertexAttribDivisor(2, 1);
+    glVertexAttribDivisor(3, 1);
+    glVertexAttribDivisor(4, 1);
     glBindVertexArray(0);
 
     glGenVertexArrays(1, &edge_subscene.vao);
