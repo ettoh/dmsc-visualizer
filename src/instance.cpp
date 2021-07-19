@@ -13,25 +13,17 @@ namespace dmsc {
 // = Adjacency matrix
 // ========================
 
-AdjacencyMatrix::AdjacencyMatrix(const size_t size, const Item& default_value) {
+AdjacencyList::AdjacencyList(const size_t size, const Item& default_value) {
     matrix.reserve(size);
-    matrix.assign(size, std::vector<Item>());
-    for (auto& list : matrix) {
-        list.reserve(size);
-        list.assign(size, default_value);
-    }
+    matrix.assign(size, std::map<uint32_t, Item>());
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void AdjacencyMatrix::clear() {
+void AdjacencyList::clear() {
     size_t size = matrix.capacity();
     matrix.clear();
-    matrix.assign(size, std::vector<Item>());
-    for (auto& list : matrix) {
-        list.reserve(size);
-        list.assign(size, Item());
-    }
+    matrix.assign(size, std::map<uint32_t, Item>());
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -167,7 +159,7 @@ PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
     cm.radius_central_mass = source.cm.radius_central_mass;
     cm.gravitational_parameter = source.cm.gravitational_parameter;
     satellites = source.satellites;
-    adjacency_matrix = source.adjacency_matrix;
+    adjacency_list = source.adjacency_list;
     scheduled_communications = source.scheduled_communications;
 
     // edges must point to the new orbit objects
@@ -213,13 +205,13 @@ PhysicalInstance::PhysicalInstance(const Instance& raw_instance) {
 // ------------------------------------------------------------------------------------------------
 
 void PhysicalInstance::buildAdjacencyMatrix() {
-    adjacency_matrix = AdjacencyMatrix(satellites.size(), AdjacencyMatrix::Item(0u, ~0u));
+    adjacency_list = AdjacencyList(satellites.size(), AdjacencyList::Item(0u, ~0u));
 
-    // fill matrix
+    // fill list
     for (uint32_t isl_idx = 0; isl_idx < intersatellite_links.size(); isl_idx++) {
         const InterSatelliteLink& isl = intersatellite_links[isl_idx];
-        adjacency_matrix[isl.getV1Idx()][isl.getV2Idx()] = AdjacencyMatrix::Item(1u, isl_idx);
-        adjacency_matrix[isl.getV2Idx()][isl.getV1Idx()] = AdjacencyMatrix::Item(1u, isl_idx);
+        adjacency_list[isl.getV1Idx()][isl.getV2Idx()] = AdjacencyList::Item(1u, isl_idx);
+        adjacency_list[isl.getV2Idx()][isl.getV1Idx()] = AdjacencyList::Item(1u, isl_idx);
     }
 }
 
@@ -235,7 +227,7 @@ PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     cm.gravitational_parameter = source.cm.gravitational_parameter;
     satellites = source.satellites;
     satellites.shrink_to_fit();
-    adjacency_matrix = source.adjacency_matrix;
+    adjacency_list = source.adjacency_list;
     scheduled_communications = source.scheduled_communications;
 
     // edges must point to the new orbit objects

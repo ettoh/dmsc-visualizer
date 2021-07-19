@@ -14,7 +14,7 @@ using ScheduledCommunication = std::pair<uint32_t, uint32_t>;
 /**
  * @brief Which satellites can communicate with each other and at what cost.
  */
-class AdjacencyMatrix {
+class AdjacencyList {
   public:
     struct Item {
         uint32_t weight = ~0u;
@@ -25,13 +25,13 @@ class AdjacencyMatrix {
             , isl_idx(isl_idx) {}
     };
 
-    AdjacencyMatrix() = delete;
-    AdjacencyMatrix(const size_t size, const Item& default_value);
-    std::vector<Item>& operator[](size_t row) { return matrix[row]; }
-    const std::vector<Item>& operator[](size_t row) const { return matrix[row]; }
+    AdjacencyList() = delete;
+    AdjacencyList(const size_t size, const Item& default_value);
+    std::map<uint32_t, Item>& operator[](size_t row) { return matrix[row]; }
+    const std::map<uint32_t, Item>& operator[](size_t row) const { return matrix[row]; }
     void clear();
 
-    std::vector<std::vector<Item>> matrix;
+    std::vector<std::map<uint32_t, Item>> matrix;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -112,14 +112,14 @@ class PhysicalInstance {
     float getRadiusCentralMass() const { return cm.radius_central_mass; }
     const std::vector<Satellite>& getSatellites() const { return satellites; }
     const std::vector<InterSatelliteLink>& getISLs() const { return intersatellite_links; }
-    const AdjacencyMatrix& getAdjacencyMatrix() const { return adjacency_matrix; }
+    const AdjacencyList& getAdjacencyMatrix() const { return adjacency_list; }
     size_t islCount() const { return intersatellite_links.size(); }
     size_t satelliteCount() const { return satellites.size(); }
 
   private:
     std::vector<Satellite> satellites;
     std::vector<InterSatelliteLink> intersatellite_links;
-    AdjacencyMatrix adjacency_matrix = AdjacencyMatrix(0, AdjacencyMatrix::Item(~0u, ~0u));
+    AdjacencyList adjacency_list = AdjacencyList(0, AdjacencyList::Item(~0u, ~0u));
     CentralMass cm;
     enum FileReadingMode { READ_INIT, READ_ORBIT, READ_EDGE }; // order must match blocks in file-format
 

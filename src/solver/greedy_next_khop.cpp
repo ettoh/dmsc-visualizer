@@ -11,7 +11,7 @@ namespace solver {
  */
 struct GreedyNextKHop::Communication {
     ScheduledCommunication scheduled_communication = {~0u, ~0u};
-    AdjacencyMatrix possible_paths = AdjacencyMatrix(0, AdjacencyMatrix::Item(~0u, ~0u));
+    AdjacencyList possible_paths = AdjacencyList(0, AdjacencyList::Item(~0u, ~0u));
     uint32_t forward_idx = 0u; // index of current vertex for the forward direction (sat1 -> sat2)
 };
 
@@ -49,30 +49,28 @@ Solution GreedyNextKHop::solve() {
         for (uint32_t i = 0; i < remaining_communications.size(); i++) {
             const Communication& com = remaining_communications[i];
 
-            std::vector<AdjacencyMatrix::Item> possible_neighbours = com.possible_paths[com.forward_idx];
+            std::map<uint32_t, AdjacencyList::Item> possible_neighbours = com.possible_paths[com.forward_idx];
             // iterate over all possibilities to continue the currently chosen path
             bool path_possible = false; // is there at least one edge we can use? (will be visible in the future)
-            for (uint32_t neighbour = 0u; neighbour < possible_neighbours.size(); neighbour++) {
-                if (possible_neighbours[neighbour].weight == 1u) { // this vertex is part of a possible path
-                    const InterSatelliteLink& link = instance.getISLs()[possible_neighbours[neighbour].isl_idx];
-                    float next_communication = nextCommunication(link, curr_time);
+            for (const auto& neighbour : possible_neighbours) {
+                const InterSatelliteLink& link = instance.getISLs()[neighbour.second.isl_idx];
+                float next_communication = nextCommunication(link, curr_time);
 
-                    // will the edge become visible on the future?
-                    if (next_communication < INFINITY) {
-                        path_possible = true;
-                    }
-
-                    // edge is avaible earlier
-                    if (next_communication < t_next) {
-                        t_next = next_communication;
-                        chosen_neighbour = neighbour;
-                        chosen_communication = i;
-                    }
-
-                    // it's not getting better
-                    if (t_next - curr_time == 0.f)
-                        break;
+                // will the edge become visible on the future?
+                if (next_communication < INFINITY) {
+                    path_possible = true;
                 }
+
+                // edge is avaible earlier
+                if (next_communication < t_next) {
+                    t_next = next_communication;
+                    chosen_neighbour = neighbour.first;
+                    chosen_communication = i;
+                }
+
+                // it's not getting better
+                if (t_next - curr_time == 0.f)
+                    break;
             }
 
             // we cant continue the current path
@@ -122,13 +120,13 @@ Solution GreedyNextKHop::solve() {
 
 // ------------------------------------------------------------------------------------------------
 
-std::pair<bool, AdjacencyMatrix> GreedyNextKHop::findPaths(const uint32_t origin_idx,
-                                                           const uint32_t destination_idx) const {
+std::pair<bool, AdjacencyList> GreedyNextKHop::findPaths(const uint32_t origin_idx,
+                                                         const uint32_t destination_idx) const {
     // store path in correct order and sorted (to be able to find already visited vertices)
     using Subpath = std::pair<std::vector<uint32_t>, std::set<uint32_t>>;
 
-    AdjacencyMatrix result(instance.satelliteCount(), AdjacencyMatrix::Item(0u, ~0u));
-    const AdjacencyMatrix& global_adj = instance.getAdjacencyMatrix();
+    AdjacencyList result(instance.satelliteCount(), AdjacencyList::Item(0u, ~0u));
+    const AdjacencyList& global_adj = instance.getAdjacencyMatrix();
     std::deque<Subpath> subpaths = {{{origin_idx}, {origin_idx}}};
     bool path_found = false; // at least one path found?
 
@@ -137,31 +135,31 @@ std::pair<bool, AdjacencyMatrix> GreedyNextKHop::findPaths(const uint32_t origin
         subpaths.pop_front();
 
         // iterate over all neighbour vertices of the last vertex in current subpath
-        for (uint32_t neighbour_vertex = 0; neighbour_vertex < global_adj.matrix[subpath.first.back()].size();
-             neighbour_vertex++) {
-            // is vertex neighbour?
-            if (global_adj.matrix[subpath.first.back()][neighbour_vertex].weight == 0u) {
-                continue;
-            }
-
+        for (const auto& neighbour : global_adj[subpath.first.back()]) {
             // vertex visited before?
-            if (subpath.second.find(neighbour_vertex) != subpath.second.end()) {
+            if (subpath.second.find(neighbour.first) != subpath.second.end()) {
                 continue;
             }
 
             // path complete?
-            if (neighbour_vertex == destination_idx) {
+            if (neighbour.first == destination_idx) {
                 // add path to the final adjacency matrix
                 path_found = true;
                 for (uint32_t i = 0; (i + 1) < subpath.first.size(); i++) {
                     uint32_t from_idx = subpath.first[i];
                     uint32_t to_idx = subpath.first[i + 1];
-                    AdjacencyMatrix::Item edge_used = global_adj.matrix[from_idx][to_idx];
-                    result.matrix[from_idx][to_idx] = edge_used;
+                    auto edge_used = global_adj[from_idx].find(to_idx);
+
+                    if (edge_used != global_adj[from_idx].end()) {
+                        result.matrix[from_idx][to_idx] = edge_used->second;
+                    } else {
+                        printf("The adjacency list does not include an entry (%u, %u).\n", from_idx, to_idx);
+                        assert(false);
+                        exit(EXIT_FAILURE);
+                    }
                 }
-                // add last edge (which was not part of the subpath before) to the final adjacency matrix
-                AdjacencyMatrix::Item edge_used = global_adj.matrix[subpath.first.back()][destination_idx];
-                result.matrix[subpath.first.back()][destination_idx] = edge_used;
+                // add last edge (which was not part of the subpath before) to the final adjacency matrix;
+                result.matrix[subpath.first.back()][destination_idx] = neighbour.second;
                 continue;
             }
 
@@ -169,8 +167,8 @@ std::pair<bool, AdjacencyMatrix> GreedyNextKHop::findPaths(const uint32_t origin
             // k is number of "extra" satellites - e.g. k=1 allows 3 edges (origin, hop, target)
             if (!(subpath.first.size() > k + 2)) {
                 Subpath new_subpath = subpath;
-                new_subpath.first.push_back(neighbour_vertex); // add vertex to the path
-                new_subpath.second.insert(neighbour_vertex);   // mark vertex as visited
+                new_subpath.first.push_back(neighbour.first); // add vertex to the path
+                new_subpath.second.insert(neighbour.first);   // mark vertex as visited
                 subpaths.push_back(new_subpath);
             }
         }
