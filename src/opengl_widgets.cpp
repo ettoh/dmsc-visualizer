@@ -160,13 +160,13 @@ void OpenGLWidget::init() {
     glUniformBlockBinding(earth_prog, index, 1);
 
     // load textures
-    loadTextures("earth_day", uniform_texture_location[0], "textures/earth_day.jpg", texture_id[0]);
-    loadTextures("earth_water", uniform_texture_location[1], "textures/earth_water.jpg", texture_id[1]);
+    loadTextures("earth_day", "textures/earth_day.jpg", texture_id[0]);
+    loadTextures("earth_water", "textures/earth_water.jpg", texture_id[1]);
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::loadTextures(const char* uniform_name, GLint& tex_location, const char* file, GLuint& id) {
+void OpenGLWidget::loadTextures(const char* uniform_name, const char* file, GLuint& id) {
     int w, h;
     int channels;
     unsigned char* image;
@@ -189,12 +189,7 @@ void OpenGLWidget::loadTextures(const char* uniform_name, GLint& tex_location, c
                  GL_RGB, // target format
                  GL_UNSIGNED_BYTE, image);
     stbi_image_free(image);
-
-    // bind texture uniform
-    tex_location = glGetUniformLocation(earth_prog, uniform_name);
-    if (tex_location == -1) {
-        std::cout << "Could not bind uniform " << uniform_name << std::endl;
-    }
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -244,17 +239,23 @@ void OpenGLWidget::openWindow() {
 void OpenGLWidget::renderScene() {
     recalculate();
 
-    // bind textures
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(uniform_texture_location[0], /*GL_TEXTURE*/ 0);
-    glBindTexture(GL_TEXTURE_2D, texture_id[0]);
-
-    glActiveTexture(GL_TEXTURE1);
-    glUniform1i(uniform_texture_location[1], /*GL_TEXTURE*/ 1);
-    glBindTexture(GL_TEXTURE_2D, texture_id[1]);
-
     // Draw the scene:
     for (const Subscene& s : scene) {
+        // todo generalize
+        if (&s == &scene[EARTH_SUBSCENE]) {
+            glUseProgram(s.program);
+            GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
+            GLint t2 = glGetUniformLocation(earth_prog, "earth_water");
+
+            // bind textures
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture_id[0]);
+            glUniform1i(t1, 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texture_id[1]);
+            glUniform1i(t2, 1);
+        }
         drawSubscene(s);
     }
 }
@@ -331,7 +332,7 @@ void OpenGLWidget::recalculateOrbitPositions() {
     // push data to VBO
     if (transformations.size() != 0) {
         size_t size_transformation = sizeof(transformations[0]) * transformations.size();
-        glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene->vbo_dynamic);                          // set active
+        glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_dynamic);                    // set active
         glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformations[0], GL_STREAM_DRAW); // push data
     }
 }
@@ -419,8 +420,8 @@ void OpenGLWidget::recalculateEdges() {
 
     // push data to gpu
     size_t offset_vertices = 0;
-    glBindBuffer(GL_ARRAY_BUFFER, edge_subscene->vbo_dynamic);
-    glBufferData(GL_ARRAY_BUFFER, edge_subscene->totalVertexSize(), 0, GL_STREAM_DRAW); // allocate memory
+    glBindBuffer(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].vbo_dynamic);
+    glBufferData(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].totalVertexSize(), 0, GL_STREAM_DRAW); // allocate memory
     for (const auto& model : line_meshes) {
         size_t object_size = model.totalVertexSize(); // size of all vertices in byte
 
@@ -435,7 +436,7 @@ void OpenGLWidget::recalculateEdges() {
         for (uint32_t i = 0; i < problem_instance.getISLs().size(); i++) {
             auto range = scan_cover.equal_range(i);
             if (range.first == scan_cover.end()) {
-                edge_subscene->setEnabled(i, false); // edge is not part of the scan cover -> hide it
+                scene[EDGES_SUBSCENE].setEnabled(i, false); // edge is not part of the scan cover -> hide it
             } else {
                 float latest_use = 0.f;
                 for (auto it = range.first; it != range.second; ++it) {
@@ -444,7 +445,7 @@ void OpenGLWidget::recalculateEdges() {
 
                 // edge will not be part of a communication anymore
                 if (latest_use < sim_time) {
-                    edge_subscene->setEnabled(i, false); // actually: diables the i-th object in subscene
+                    scene[EDGES_SUBSCENE].setEnabled(i, false); // actually: diables the i-th object in subscene
                 }
             }
         }
@@ -457,7 +458,8 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     glUseProgram(subscene.program);
     glBindVertexArray(subscene.vao);
 
-    if (&subscene == satellite_subscene) {
+    // todo generalize
+    if (&subscene == &scene[SATELLITE_SUBSCENE]) {
         if (!subscene.getObjectInfo()[0].enabled) {
             return;
         }
@@ -498,6 +500,17 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
 
 // ------------------------------------------------------------------------------------------------
 
+void OpenGLWidget::createSubscene(Subscene& subscene, GLuint program) {
+    subscene = Subscene();
+    subscene.program = program;
+
+    glGenBuffers(1, &subscene.vbo_static);
+    glGenBuffers(1, &subscene.ibo_static);
+    glGenBuffers(1, &subscene.vbo_dynamic);
+}
+
+// ------------------------------------------------------------------------------------------------
+
 void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     deleteInstance();
     state = INSTANCE;
@@ -506,41 +519,15 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     sim_time = 0.f;
 
     // 0. init subscenes
-    scene.push_back(Subscene()); // todo ugly!
-    scene.push_back(Subscene());
-    scene.push_back(Subscene());
-    scene.push_back(Subscene());
-    Subscene& static_subscene = scene[0];
-    Subscene& satellite_subscene = scene[1];
-    Subscene& edge_subscene = scene[2];
-    Subscene& earth_subscene = scene[3];
-    static_subscene.program = basic_program;
-    satellite_subscene.program = satellite_prog;
-    edge_subscene.program = basic_program;
-    earth_subscene.program = earth_prog;
-    this->satellite_subscene = &satellite_subscene;
-    this->edge_subscene = &edge_subscene;
-    this->earth_subscene = &earth_subscene;
-    this->static_subscene = &static_subscene;
-
-    // todo generalize
-    glGenBuffers(1, &static_subscene.vbo_static);
-    glGenBuffers(1, &static_subscene.ibo_static);
-
-    glGenBuffers(1, &earth_subscene.vbo_static);
-    glGenBuffers(1, &earth_subscene.ibo_static);
-
-    glGenBuffers(1, &satellite_subscene.vbo_static);
-    glGenBuffers(1, &satellite_subscene.ibo_static);
-    glGenBuffers(1, &satellite_subscene.vbo_dynamic);
-
-    glGenBuffers(1, &edge_subscene.vbo_dynamic);
-    glGenBuffers(1, &edge_subscene.ibo_static);
+    createSubscene(scene[STATIC_SUBSCENE], basic_program);
+    createSubscene(scene[EARTH_SUBSCENE], earth_prog);
+    createSubscene(scene[SATELLITE_SUBSCENE], satellite_prog);
+    createSubscene(scene[EDGES_SUBSCENE], basic_program);
 
     // 1. build meshes and push them to the gpu
     Object sphere =
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
-    earth_subscene.add(sphere);
+    scene[EARTH_SUBSCENE].add(sphere);
     Object all_orbits;
     all_orbits.gl_draw_mode = GL_LINE_LOOP;
     for (const Satellite& o : problem_instance.getSatellites()) {
@@ -549,7 +536,7 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
 
         // the number of vertices is limited by the range of GL_unsigned_short (type of indices)
         if (all_orbits.vertices.size() + orbit.vertices.size() >= MAX_ELEMENT_ID) {
-            static_subscene.add(all_orbits);
+            scene[STATIC_SUBSCENE].add(all_orbits);
             all_orbits = Object();
             all_orbits.gl_draw_mode = GL_LINE_LOOP;
         }
@@ -563,34 +550,35 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
             all_orbits.elements.push_back(i + static_cast<GLushort>(offset));
         }
     }
-    static_subscene.add(all_orbits);
+    scene[STATIC_SUBSCENE].add(all_orbits);
 
     // Satellite
     // one sphere is enough - it will be reused (instanced rendering)
     Object satellite = OpenGLPrimitives::createSatellite();
-    satellite_subscene.add(satellite); // position is later set by shader
+    scene[SATELLITE_SUBSCENE].add(satellite); // position is later set by shader
 
     // 1.2 Edges & orientations
     std::vector<Object> line_meshes = createLines();
     for (const auto& mesh : line_meshes) {
-        edge_subscene.add(mesh);
+        scene[EDGES_SUBSCENE].add(mesh);
     }
 
     pushSceneToGPU();
 
     // delete vertex data (it is now stored in the gpu memory)
-    earth_subscene.clearObjectData();
-    static_subscene.clearObjectData();
-    satellite_subscene.clearObjectData();
-    edge_subscene.clearObjectData();
+    scene[EARTH_SUBSCENE].clearObjectData();
+    scene[STATIC_SUBSCENE].clearObjectData();
+    scene[SATELLITE_SUBSCENE].clearObjectData();
+    scene[EDGES_SUBSCENE].clearObjectData();
 
+    // todo generalize
     // 2. define format for data
     /* Create VAO that handle the vbo's and it's format.
      * All following VBO's and attribPointer will belong to this VAO (until a different VAO is bound). */
-    glGenVertexArrays(1, &static_subscene.vao);
-    glBindVertexArray(static_subscene.vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, static_subscene.ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, static_subscene.vbo_static);
+    glGenVertexArrays(1, &scene[STATIC_SUBSCENE].vao);
+    glBindVertexArray(scene[STATIC_SUBSCENE].vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[STATIC_SUBSCENE].ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, scene[STATIC_SUBSCENE].vbo_static);
     glEnableVertexAttribArray(0); // vertices
     // (attribute, values per vertex, type, normalize?, stride (in byte), offset for the 1st element)
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
@@ -598,10 +586,10 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
     glBindVertexArray(0);
 
-    glGenVertexArrays(1, &earth_subscene.vao);
-    glBindVertexArray(earth_subscene.vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, earth_subscene.ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, earth_subscene.vbo_static);
+    glGenVertexArrays(1, &scene[EARTH_SUBSCENE].vao);
+    glBindVertexArray(scene[EARTH_SUBSCENE].vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[EARTH_SUBSCENE].ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, scene[EARTH_SUBSCENE].vbo_static);
     glEnableVertexAttribArray(0); // vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
     glEnableVertexAttribArray(1); // texture
@@ -610,13 +598,13 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 8));
     glBindVertexArray(0);
 
-    glGenVertexArrays(1, &satellite_subscene.vao);
-    glBindVertexArray(satellite_subscene.vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, satellite_subscene.ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene.vbo_static);
+    glGenVertexArrays(1, &scene[SATELLITE_SUBSCENE].vao);
+    glBindVertexArray(scene[SATELLITE_SUBSCENE].vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_static);
     glEnableVertexAttribArray(0); // vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene.vbo_dynamic); // satellite transformation
+    glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_dynamic); // satellite transformation
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);
     glEnableVertexAttribArray(3);
@@ -632,10 +620,10 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     glVertexAttribDivisor(4, 1);
     glBindVertexArray(0);
 
-    glGenVertexArrays(1, &edge_subscene.vao);
-    glBindVertexArray(edge_subscene.vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, edge_subscene.ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, edge_subscene.vbo_dynamic);
+    glGenVertexArrays(1, &scene[EDGES_SUBSCENE].vao);
+    glBindVertexArray(scene[EDGES_SUBSCENE].vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[EDGES_SUBSCENE].ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].vbo_dynamic);
     glEnableVertexAttribArray(0); // vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
     glEnableVertexAttribArray(1); // colors
@@ -741,7 +729,7 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::Button("Restart")) {
             sim_time = 0.f;
             sim_speed = 1;
-            edge_subscene->setAllEnabled(true);
+            scene[EDGES_SUBSCENE].setAllEnabled(true);
         }
         ImGui::SameLine();
         if (ImGui::Button("Reset camera")) {
@@ -757,37 +745,37 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
             static bool hide_satellites = false;
             if (ImGui::Checkbox("Hide satellites", &hide_satellites)) {
-                satellite_subscene->setAllEnabled(!hide_satellites);
+                scene[SATELLITE_SUBSCENE].setAllEnabled(!hide_satellites);
             }
 
             static bool hide_earth = false;
             if (ImGui::Checkbox("Hide earth", &hide_earth)) {
-                earth_subscene->setAllEnabled(!hide_earth);
+                scene[EARTH_SUBSCENE].setAllEnabled(!hide_earth);
             }
 
             static bool hide_orbits = false;
             if (ImGui::Checkbox("Hide orbits", &hide_orbits)) {
-                static_subscene->setAllEnabled(!hide_orbits);
+                scene[STATIC_SUBSCENE].setAllEnabled(!hide_orbits);
             }
 
             static bool hide_isl = false;
             if (ImGui::Checkbox("Hide ISL-network", &hide_isl)) {
                 for (size_t i = 0; i < edgescene_com_start; i++) {
-                    edge_subscene->setEnabled(i, !hide_isl);
+                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_isl);
                 }
             }
 
             static bool hide_comms = false;
             if (ImGui::Checkbox("Hide scheduled communications", &hide_comms)) {
                 for (size_t i = edgescene_com_start; i <= edgescene_com_end; i++) {
-                    edge_subscene->setEnabled(i, !hide_comms);
+                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_comms);
                 }
             }
 
             static bool hide_orientations = false;
             if (ImGui::Checkbox("Hide satellite orientations", &hide_orientations)) {
-                for (size_t i = edgescene_com_end + 1; i < edge_subscene->objectCount(); i++) {
-                    edge_subscene->setEnabled(i, !hide_orientations);
+                for (size_t i = edgescene_com_end + 1; i < scene[EDGES_SUBSCENE].objectCount(); i++) {
+                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_orientations);
                 }
             }
         }
@@ -811,7 +799,6 @@ void OpenGLWidget::destroy() {
     glDeleteProgram(satellite_prog);
     glDeleteTextures(1, &texture_id[0]);
     glDeleteTextures(1, &texture_id[1]);
-    glDeleteTextures(1, &texture_id[2]);
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -828,15 +815,9 @@ void OpenGLWidget::deleteInstance() {
         glDeleteBuffers(1, &subscene.vbo_dynamic);
         glDeleteBuffers(1, &subscene.vbo_static);
     }
-    satellite_subscene = nullptr;
-    edge_subscene = nullptr;
-    earth_subscene = nullptr;
-    static_subscene = nullptr;
 
     edgescene_com_start = ~0u;
     edgescene_com_end = ~0u;
-
-    scene.clear();
 }
 
 // ------------------------------------------------------------------------------------------------

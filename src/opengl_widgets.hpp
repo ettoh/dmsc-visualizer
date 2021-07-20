@@ -1,6 +1,7 @@
 #include "dmsc/instance.hpp"
 #include "dmsc/solver.hpp" // solution data type
 #include "opengl_primitives.hpp"
+#include <array>
 #include <map>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,8 +40,9 @@ class OpenGLWidget {
     void recalculateEdges();
     void deleteInstance();
     void pushSceneToGPU();
-    void loadTextures(const char* uniform_name, GLint& tex_location, const char* file, GLuint& id);
+    void loadTextures(const char* uniform_name, const char* file, GLuint& id);
     void openWindow();
+    void createSubscene(OpenGLPrimitives::Subscene& subscene, GLuint program);
 
     /**
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
@@ -81,13 +83,18 @@ class OpenGLWidget {
     }
 
   private:
+    enum Subscenes {
+        STATIC_SUBSCENE = 0,
+        SATELLITE_SUBSCENE,
+        EARTH_SUBSCENE,
+        EDGES_SUBSCENE,
+    }; // do not change - used for array indices
     GLFWwindow* window = nullptr;
     const float real_world_scale = 7000.0f;
     // Handler
     GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
     GLuint vbo_uniforms = 0;
     GLuint texture_id[2] = {0, 0};
-    GLint uniform_texture_location[2] = {-1, -1};
     // view and camera
     float zoom = 1.0f;
     glm::vec2 camera_rotation_angle_offset = glm::vec2(.0f, .0f);
@@ -100,14 +107,10 @@ class OpenGLWidget {
     // scene
     int state = VisualisationState::EMPTY;
     PhysicalInstance problem_instance = PhysicalInstance();
-    std::vector<OpenGLPrimitives::Subscene> scene;
     float sim_time = 0.0f;
     int sim_speed = 1;
     bool paused = false; // if true, the simulations is paused
-    OpenGLPrimitives::Subscene* satellite_subscene = nullptr;
-    OpenGLPrimitives::Subscene* edge_subscene = nullptr;
-    OpenGLPrimitives::Subscene* earth_subscene = nullptr;
-    OpenGLPrimitives::Subscene* static_subscene = nullptr;
+    std::array<OpenGLPrimitives::Subscene, 4> scene;
     size_t edgescene_com_start = ~0u; // object ID where the edges for scheduled communications begin
     size_t edgescene_com_end = ~0u;   // object ID where the edges for scheduled communications end
     // solution
