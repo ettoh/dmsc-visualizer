@@ -200,36 +200,21 @@ void OpenGLWidget::loadTextures(const char* uniform_name, GLint& tex_location, c
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) {
-    visualizeInstance(instance);
+    prepareInstanceScene(instance);
     sim_time = t0;
-    glm::vec3 clear_color = glm::vec3(0.03f);
-
-    // Main loop
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-        buildGUI(); // Update gui
-
-        // Prepare rendering
-        ImGui::Render(); // State change
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x, clear_color.y, clear_color.z, 1.f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        // render new frame
-        renderScene();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        // swap
-        glfwSwapBuffers(window);
-    }
+    openWindow();
 }
 
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::show(const PhysicalInstance& instance, const Solution& solution) {
-    visualizeSolution(instance, solution);
+    prepareSolutionScene(instance, solution);
+    openWindow();
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::openWindow() {
     glm::vec3 clear_color = glm::vec3(0.03f);
 
     // Main loop
@@ -310,7 +295,7 @@ void OpenGLWidget::recalculate() {
     GLint viewport[4];
     glGetIntegerv(GL_VIEWPORT, viewport);
     projection = glm::perspective(45.0f, 1.0f * viewport[2] / viewport[3], 0.1f, 10.0f);
-    glm::mat4 scale = glm::scale(glm::vec3(1.0f) * zoom);
+    glm::mat4 scale = glm::scale(glm::vec3(zoom));
     glm::mat4 model = world_rotation;
     // glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
 
@@ -333,19 +318,21 @@ void OpenGLWidget::recalculate() {
 
 void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
-    std::vector<glm::mat4> transformation;
-    transformation.reserve(problem_instance.getSatellites().size());
+    std::vector<glm::mat4> transformations;
+    transformations.reserve(problem_instance.getSatellites().size());
 
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
-        transformation.push_back(glm::translate(position));
+        glm::mat4 translation = glm::translate(position);
+        glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(-zoom))); // ignore zoom for satellites
+        transformations.push_back(translation * scale);
     }
 
     // push data to VBO
-    if (transformation.size() != 0) {
-        size_t size_transformation = sizeof(transformation[0]) * transformation.size();
-        glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene->vbo_dynamic);                         // set active
-        glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformation[0], GL_STREAM_DRAW); // push data
+    if (transformations.size() != 0) {
+        size_t size_transformation = sizeof(transformations[0]) * transformations.size();
+        glBindBuffer(GL_ARRAY_BUFFER, satellite_subscene->vbo_dynamic);                          // set active
+        glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformations[0], GL_STREAM_DRAW); // push data
     }
 }
 
@@ -471,6 +458,10 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     glBindVertexArray(subscene.vao);
 
     if (&subscene == satellite_subscene) {
+        if (!subscene.getObjectInfo()[0].enabled) {
+            return;
+        }
+
         glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLint>(subscene.elementCount()), GL_UNSIGNED_SHORT,
                                 (void*)(0), problem_instance.getSatellites().size());
         glBindVertexArray(0);
@@ -507,7 +498,7 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
+void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     deleteInstance();
     state = INSTANCE;
     // copy so visualization does not depend on original instance
@@ -654,8 +645,8 @@ void OpenGLWidget::visualizeInstance(const PhysicalInstance& instance) {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::visualizeSolution(const PhysicalInstance& instance, const Solution& solution) {
-    visualizeInstance(instance);
+void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const Solution& solution) {
+    prepareInstanceScene(instance);
     scan_cover = solution.scan_cover;
     satellite_orientations.clear();
     edge_order.clear();

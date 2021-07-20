@@ -40,17 +40,18 @@ class OpenGLWidget {
     void deleteInstance();
     void pushSceneToGPU();
     void loadTextures(const char* uniform_name, GLint& tex_location, const char* file, GLuint& id);
+    void openWindow();
 
     /**
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
-     * scene with vertices and display it until the next call.
+     * scene.
      */
-    void visualizeInstance(const PhysicalInstance& instance);
+    void prepareInstanceScene(const PhysicalInstance& instance);
 
     /**
-     * @brief Visualize a given solution for the current displayed instance.
+     * @brief Visualize a given solution for the given instance.
      */
-    void visualizeSolution(const PhysicalInstance& instance, const Solution& solution);
+    void prepareSolutionScene(const PhysicalInstance& instance, const Solution& solution);
 
     /**
      * @brief Read source code for a shader from a local file.

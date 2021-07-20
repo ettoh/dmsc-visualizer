@@ -93,7 +93,7 @@ Object OpenGLPrimitives::createSatellite() {
     Object model = Object();
     model.gl_draw_mode = GL_TRIANGLES;
 
-    return createSphere(0.005f, glm::vec3(0.0f), 10);
+    return createSphere(0.007f, glm::vec3(0.0f), 10);
 }
 
 // ------------------------------------------------------------------------------------------------
