@@ -245,7 +245,7 @@ void OpenGLWidget::renderScene() {
         if (&s == &scene[EARTH_SUBSCENE]) {
             glUseProgram(s.program);
             GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
-            GLint t2 = glGetUniformLocation(earth_prog, "earth_water");
+            GLint t2 = glGetUniformLocation(earth_prog, "specularity_map");
 
             // bind textures
             glActiveTexture(GL_TEXTURE0);
