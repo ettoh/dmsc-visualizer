@@ -4,7 +4,8 @@ namespace dmsc {
 
 using OpenGLPrimitives::Object;
 
-Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy) {
+Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy,
+                                      const glm::vec3 color) {
     unsigned short number_of_stacks = accuracy;
     unsigned short number_of_sectors = accuracy * 2;
     float stack_step = static_cast<float>(M_PI) / number_of_stacks;
@@ -53,7 +54,7 @@ Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center
             vertex.normal = glm::normalize(position);
 
             // colors
-            vertex.color = glm::vec3(0.f);
+            vertex.color = color;
 
             model.vertices.push_back(vertex);
         }
@@ -99,11 +100,11 @@ Object OpenGLPrimitives::createSatellite() {
 // ------------------------------------------------------------------------------------------------
 
 Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
-    int number_of_sides = 130;
+    unsigned int number_of_sides = 130u;
     Object model = Object();
     model.gl_draw_mode = GL_LINE_LOOP;
 
-    for (int i = 0; i < number_of_sides; i++) {
+    for (unsigned short i = 0; i < number_of_sides; i++) {
         VertexData vertex = VertexData();
         float true_anomaly = i * 2.f * static_cast<float>(M_PI) / number_of_sides;
         glm::vec3 cartesian_coords = orbit.cartesian_coordinates_angle(true_anomaly) / scale;
@@ -138,6 +139,122 @@ Object OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, co
         v2.position = p1 + distance_vector * ((i * 2 + 1) / segments);
         m.vertices.push_back(v2);
     }
+
+    return m;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+Object OpenGLPrimitives::createPipe(const float radius, const float height, const glm::vec3 color,
+                                    const unsigned int sector_count) {
+    Object m = Object();
+    m.gl_draw_mode = GL_TRIANGLE_STRIP;
+    if (sector_count < 3)
+        return m;
+
+    // vertices
+    const float PI = 3.1415926f;
+    float sector_step = 2 * PI / sector_count;
+    for (unsigned int i = 0; i <= sector_count; i++) {
+        float angle = i * sector_step;
+        float x = radius * cos(angle);
+        float z = radius * sin(angle);
+        glm::vec3 normal = glm::normalize(glm::vec3(x, 0.f, z));
+
+        VertexData v0(x, -height / 2, z);
+        v0.color = color;
+        v0.normal = normal;
+        VertexData v1(x, height / 2, z);
+        v1.color = color;
+        v1.normal = normal;
+
+        m.vertices.push_back(v0);
+        m.vertices.push_back(v1);
+    }
+
+    // primitives by indices
+    // first triangle
+    m.elements.push_back(1);
+    m.elements.push_back(0);
+    m.elements.push_back(3);
+    unsigned short last_vertex_idx = 3u;
+
+    // for each additional triangle, add one index (TRIANGLE STRIP)
+    for (unsigned int i = 0; i + 1 < 2 * sector_count; i++) {
+        if (i % 2 == 0)
+            last_vertex_idx -= 1;
+        else
+            last_vertex_idx += 3;
+
+        m.elements.push_back(last_vertex_idx % (2 * sector_count));
+    }
+    return m;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+Object OpenGLPrimitives::createCone(const float base_radius, const float height, const glm::vec3 color,
+                                    const unsigned short sector_count) {
+    Object m = Object();
+    m.gl_draw_mode = GL_TRIANGLES;
+    if (sector_count < 3)
+        return m;
+
+    const float half_height = height / 2;
+
+    // top vertex (reused for different normals)
+    VertexData top_vertex(0.f, 0.f, 0.f);
+    top_vertex.color = color;
+
+    // bottom vertex
+    VertexData bottom_vertex(0.f, -height, 0.f);
+    bottom_vertex.color = color;
+    bottom_vertex.normal = glm::vec3(0.f, -1.f, 0.f);
+    m.vertices.push_back(bottom_vertex); // index 0
+
+    // parameter for normals
+    const float side_length = sqrtf(height * height + base_radius * base_radius);
+    const float nx = height / side_length;
+    const float ny = base_radius / side_length;
+
+    // vertices for the sides
+    const float PI = 3.1415926f;
+    float sector_step = 2 * PI / sector_count;
+    VertexData v;
+    v.color = color;
+    for (unsigned int i = 0; i <= sector_count; i++) {
+        float angle = i * sector_step;
+        float x = base_radius * cos(angle);
+        float z = base_radius * sin(angle);
+        v.position = glm::vec3(x, -height, z);
+
+        glm::vec3 normal(nx * cos(angle), ny, nx * sin(angle)); // rotation of initial normal
+        v.normal = glm::normalize(normal);
+        top_vertex.normal = glm::normalize(normal + glm::vec3(0, -1, 0)); // bisector 
+        m.vertices.push_back(top_vertex);
+        m.vertices.push_back(v);
+
+        // vertex for bottom circle
+        v.normal = glm::vec3(0.f, -1.f, 0.f);
+        m.vertices.push_back(v);
+    }
+
+    // elements for sides
+    for (unsigned short i = 1; i / 3 < sector_count; i += 3) {
+        m.elements.push_back(i);
+        m.elements.push_back(i + 1);
+        m.elements.push_back((i + 4) % (3 * sector_count));
+    }
+
+    // elements for bottom circle
+    for (unsigned short i = 1; i < sector_count; i++) {
+        m.elements.push_back(0u);
+        m.elements.push_back(i * 3u);
+        m.elements.push_back(i * 3u + 3u);
+    }
+    m.elements.push_back(0u);
+    m.elements.push_back(3u * sector_count);
+    m.elements.push_back(3u);
 
     return m;
 }

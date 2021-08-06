@@ -2,11 +2,13 @@
 uniform sampler2D earth_day;
 uniform sampler2D specularity_map;
 
-varying vec2 f_texcoord;
+varying vec3 f_color;
 varying vec4 f_normal;
 varying vec3 f_coord3d;
+varying vec2 f_texcoord;
+
 layout (std140) uniform Global{	
-    mat4 model; 
+    mat4 camera_rotation; 
     mat4 view; 
     mat4 projection; 
     mat4 scaling;
@@ -15,7 +17,7 @@ layout (std140) uniform Global{
 
 void main(void) {
     float ambient = 0.09;
-    vec3 light_source = (model * sun_angle * vec4(0.0, 0.0, 20.0, 1.0)).xyz;
+    vec3 light_source = (camera_rotation * sun_angle * vec4(0.0, 0.0, 20.0, 1.0)).xyz;
     vec3 N = normalize(f_normal).xyz;
     vec3 L = light_source - f_coord3d; // light source
     float sqr_distance = dot(L, L);

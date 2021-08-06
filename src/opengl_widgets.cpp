@@ -139,10 +139,9 @@ void OpenGLWidget::init() {
     GLuint fragment_shader = createShader("shader/basic.frag", GL_FRAGMENT_SHADER);
     GLuint earth_frag_shader = createShader("shader/earth.frag", GL_FRAGMENT_SHADER);
     GLuint satellite_vert_shader = createShader("shader/satellite.vert", GL_VERTEX_SHADER);
-    GLuint earth_vert_shader = createShader("shader/earth.vert", GL_VERTEX_SHADER);
     basic_program = createProgram(vertex_shader, fragment_shader);
     satellite_prog = createProgram(satellite_vert_shader, fragment_shader);
-    earth_prog = createProgram(earth_vert_shader, earth_frag_shader);
+    earth_prog = createProgram(vertex_shader, earth_frag_shader);
 
     // create uniform buffer
     glGenBuffers(1, &vbo_uniforms);
@@ -158,6 +157,40 @@ void OpenGLWidget::init() {
     glUniformBlockBinding(satellite_prog, index, 1);
     index = glGetUniformBlockIndex(earth_prog, "Global");
     glUniformBlockBinding(earth_prog, index, 1);
+
+    // create storage buffer
+    glGenBuffers(1, &vbo_static);
+    glGenBuffers(1, &ibo_static);
+    glGenBuffers(1, &vbo_transformations);
+
+    // create vao
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_static);
+    glEnableVertexAttribArray(0); // vertices
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
+    glEnableVertexAttribArray(1); // colors
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
+    glEnableVertexAttribArray(2); // texture
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 6));
+    glEnableVertexAttribArray(3); // normals
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 8));
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations); // object transformations
+    glEnableVertexAttribArray(4);
+    glEnableVertexAttribArray(5);
+    glEnableVertexAttribArray(6);
+    glEnableVertexAttribArray(7);
+    // maximum size for vertexAttr is 4. So we split the 4x4matrix into 4x vec4
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(0));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 4));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 8));
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 12));
+    glVertexAttribDivisor(4, 1); // update transformation attr. every 1 instance instead of every vertex
+    glVertexAttribDivisor(5, 1);
+    glVertexAttribDivisor(6, 1);
+    glVertexAttribDivisor(7, 1);
+    glBindVertexArray(0);
 
     // load textures
     loadTextures("earth_day", "textures/earth_day.jpg", texture_id[0]);
@@ -239,23 +272,49 @@ void OpenGLWidget::openWindow() {
 void OpenGLWidget::renderScene() {
     recalculate();
 
+    glBindVertexArray(vao);
+    // for every program (key) a vector with objects is stored
+    for (const auto& obj_group : object_tree) {
+        glUseProgram(obj_group.first);
+        size_t instance_count = 0;
+
+        for (const size_t& obj_idx : obj_group.second) {
+            const ObjectInfo& obj = scene_info[obj_idx];
+
+            if (obj.name == "central_mass") {
+                GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
+                GLint t2 = glGetUniformLocation(earth_prog, "specularity_map");
+
+                // bind textures
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, texture_id[0]);
+                glUniform1i(t1, 0);
+
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, texture_id[1]);
+                glUniform1i(t2, 1);
+            }
+
+            if (obj.enabled) {
+                if (obj.number_instances > 0) { // instanced rendering
+                    glDrawElementsInstancedBaseVertexBaseInstance(
+                        obj.gl_draw_mode, static_cast<GLint>(obj.number_elements), GL_UNSIGNED_SHORT,
+                        (void*)(obj.offset), static_cast<GLsizei>(obj.number_instances),
+                        static_cast<GLint>(obj.base_index), static_cast<GLint>(instance_count));
+                } else { // direct rendering with elements
+                    glDrawElementsBaseVertex(obj.gl_draw_mode, static_cast<GLint>(obj.number_elements),
+                                             GL_UNSIGNED_SHORT, (void*)(obj.offset),
+                                             static_cast<GLint>(obj.base_index));
+                }
+            }
+            instance_count += obj.number_instances;
+        }
+    }
+
+    glBindVertexArray(0);
+
     // Draw the scene:
     for (const Subscene& s : scene) {
-        // todo generalize
-        if (&s == &scene[EARTH_SUBSCENE]) {
-            glUseProgram(s.program);
-            GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
-            GLint t2 = glGetUniformLocation(earth_prog, "specularity_map");
-
-            // bind textures
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture_id[0]);
-            glUniform1i(t1, 0);
-
-            glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, texture_id[1]);
-            glUniform1i(t2, 1);
-        }
         drawSubscene(s);
     }
 }
@@ -297,13 +356,12 @@ void OpenGLWidget::recalculate() {
     glGetIntegerv(GL_VIEWPORT, viewport);
     projection = glm::perspective(45.0f, 1.0f * viewport[2] / viewport[3], 0.1f, 10.0f);
     glm::mat4 scale = glm::scale(glm::vec3(zoom));
-    glm::mat4 model = world_rotation;
     // glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
 
     // push mvp to VBO
     glBindBuffer(GL_UNIFORM_BUFFER, vbo_uniforms);
     glBufferData(GL_UNIFORM_BUFFER, 5 * sizeof(glm::mat4), 0, GL_STREAM_DRAW);
-    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(model));
+    glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(world_rotation));
     glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
     glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
     glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(scale));
@@ -320,19 +378,63 @@ void OpenGLWidget::recalculate() {
 void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
     std::vector<glm::mat4> transformations;
-    transformations.reserve(problem_instance.getSatellites().size());
+    transformations.reserve(problem_instance.getSatellites().size() + problem_instance.scheduled_communications.size());
+    glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(zoom))); // ignore zoom
 
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
         glm::mat4 translation = glm::translate(position);
-        glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(-zoom))); // ignore zoom for satellites
         transformations.push_back(translation * scale);
+    }
+
+    for (const auto& c : problem_instance.scheduled_communications) {
+        glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
+        glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
+
+        glm::mat4 translation = glm::translate(glm::vec3(sat2));
+        glm::vec3 normal = glm::normalize(sat2 - sat1);
+        glm::vec3 axis = glm::vec3(normal.z, 0.f, -normal.x);
+        float angle = acos(normal.y);
+        glm::mat4 rotation = glm::rotate(angle, axis);
+
+        transformations.push_back(translation * rotation * scale);
+    }
+
+    for (const auto& s : problem_instance.getSatellites()) {
+        glm::vec3 position = s.cartesian_coordinates(sim_time) / real_world_scale;
+        TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&s].previousEvent(sim_time, false);
+        TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&s].prevailingEvent(sim_time, false);
+
+        if (!last_orientation.isValid()) {
+            last_orientation.t_begin = 0.f;
+            last_orientation.data = glm::vec3(0.f);
+        }
+
+        if (!next_orientation.isValid()) {
+            next_orientation.t_begin = 0.f;
+            next_orientation.data = glm::vec3(0.f);
+        }
+
+        float angle = std::acos(glm::dot(last_orientation.data, next_orientation.data)); // [rad]
+        float dt = sim_time - last_orientation.t_begin;
+
+        glm::vec3 direction_vector = last_orientation.data;
+        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * s.getRotationSpeed()),
+                                       glm::cross(direction_vector, next_orientation.data)) *
+                           0.03f;
+
+        glm::vec3 axis = glm::vec3(direction_vector.z, 0.f, -direction_vector.x);
+        float angle_rot = acos(glm::normalize(direction_vector).y);
+        glm::mat4 rotation = glm::rotate(angle_rot, axis);
+
+        glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
+        transformations.push_back(translation * scale * rotation);
     }
 
     // push data to VBO
     if (transformations.size() != 0) {
         size_t size_transformation = sizeof(transformations[0]) * transformations.size();
-        glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_dynamic);                    // set active
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations);                                              // set active
         glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformations[0], GL_STREAM_DRAW); // push data
     }
 }
@@ -407,7 +509,7 @@ std::vector<Object> OpenGLWidget::createLines() {
                                        glm::cross(direction_vector, next_orientation.data));
 
         all_lines.push_back(
-            OpenGLPrimitives::createLine(position, position + direction_vector * 0.025f, glm::vec3(1.0f)));
+            OpenGLPrimitives::createLine(position, position + direction_vector * 0.03f, glm::vec3(1.0f)));
     }
 
     return all_lines;
@@ -458,18 +560,6 @@ void OpenGLWidget::drawSubscene(const Subscene& subscene) {
     glUseProgram(subscene.program);
     glBindVertexArray(subscene.vao);
 
-    // todo generalize
-    if (&subscene == &scene[SATELLITE_SUBSCENE]) {
-        if (!subscene.getObjectInfo()[0].enabled) {
-            return;
-        }
-
-        glDrawElementsInstanced(GL_TRIANGLES, static_cast<GLint>(subscene.elementCount()), GL_UNSIGNED_SHORT,
-                                (void*)(0), problem_instance.getSatellites().size());
-        glBindVertexArray(0);
-        return;
-    }
-
     // draw each object individually
     size_t offset = 0;
     size_t offset_elements = 0;
@@ -519,26 +609,32 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     sim_time = 0.f;
 
     // 0. init subscenes
-    createSubscene(scene[STATIC_SUBSCENE], basic_program);
-    createSubscene(scene[EARTH_SUBSCENE], earth_prog);
-    createSubscene(scene[SATELLITE_SUBSCENE], satellite_prog);
     createSubscene(scene[EDGES_SUBSCENE], basic_program);
 
     // 1. build meshes and push them to the gpu
+    std::vector<Object> objects;
+
+    // central mass
     Object sphere =
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
-    scene[EARTH_SUBSCENE].add(sphere);
+    sphere.name = "central_mass";
+    sphere.gl_program = earth_prog;
+    objects.push_back(sphere);
+
+    // orbits
     Object all_orbits;
     all_orbits.gl_draw_mode = GL_LINE_LOOP;
+    all_orbits.name = "orbits";
+    all_orbits.gl_program = basic_program;
     for (const Satellite& o : problem_instance.getSatellites()) {
         // Orbit
         Object orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
 
         // the number of vertices is limited by the range of GL_unsigned_short (type of indices)
         if (all_orbits.vertices.size() + orbit.vertices.size() >= MAX_ELEMENT_ID) {
-            scene[STATIC_SUBSCENE].add(all_orbits);
-            all_orbits = Object();
-            all_orbits.gl_draw_mode = GL_LINE_LOOP;
+            objects.push_back(all_orbits);
+            all_orbits.elements.clear();
+            all_orbits.vertices.clear();
         }
 
         size_t offset = all_orbits.vertices.size(); // index 0 in orbit object has to refer the correct vertex
@@ -550,76 +646,51 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
             all_orbits.elements.push_back(i + static_cast<GLushort>(offset));
         }
     }
-    scene[STATIC_SUBSCENE].add(all_orbits);
+    objects.push_back(all_orbits);
 
-    // Satellite
-    // one sphere is enough - it will be reused (instanced rendering)
-    Object satellite = OpenGLPrimitives::createSatellite();
-    scene[SATELLITE_SUBSCENE].add(satellite); // position is later set by shader
+    // Satellites
+    Object satellites = OpenGLPrimitives::createSatellite();
+    satellites.name = "satellites";
+    satellites.gl_program = satellite_prog;
+    // for each satellite in instance we need one copy of the satellite object
+    for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
+        satellites.object_transformations.push_back(glm::mat4(1.f));
+    }
+    objects.push_back(satellites);
 
-    // 1.2 Edges & orientations
+    // Edges & orientations
     std::vector<Object> line_meshes = createLines();
-    for (const auto& mesh : line_meshes) {
+    for (auto& mesh : line_meshes) {
         scene[EDGES_SUBSCENE].add(mesh);
     }
 
-    pushSceneToGPU();
+    // build arrowheads for scheduled communications
+    Object cone = OpenGLPrimitives::createCone(0.006f, 0.03f, glm::vec3(.55f, .1f, 1.f));
+    cone.name = "communications_arrowhead";
+    cone.gl_program = satellite_prog;
+    for (int i = 0; i < problem_instance.scheduled_communications.size(); i++) {
+        cone.object_transformations.push_back(glm::mat4(1.f));
+    }
+    objects.push_back(cone);
+
+    // build arrowheads for satellite orientations
+    cone = OpenGLPrimitives::createCone(0.005f, 0.012f, glm::vec3(1.f));
+    cone.name = "orientation_arrowhead";
+    cone.gl_program = satellite_prog;
+    for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
+        cone.object_transformations.push_back(glm::mat4(1.f));
+    }
+    objects.push_back(cone);
+
+    pushSceneToGPU(objects);
 
     // delete vertex data (it is now stored in the gpu memory)
-    scene[EARTH_SUBSCENE].clearObjectData();
-    scene[STATIC_SUBSCENE].clearObjectData();
-    scene[SATELLITE_SUBSCENE].clearObjectData();
     scene[EDGES_SUBSCENE].clearObjectData();
 
     // todo generalize
     // 2. define format for data
     /* Create VAO that handle the vbo's and it's format.
      * All following VBO's and attribPointer will belong to this VAO (until a different VAO is bound). */
-    glGenVertexArrays(1, &scene[STATIC_SUBSCENE].vao);
-    glBindVertexArray(scene[STATIC_SUBSCENE].vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[STATIC_SUBSCENE].ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, scene[STATIC_SUBSCENE].vbo_static);
-    glEnableVertexAttribArray(0); // vertices
-    // (attribute, values per vertex, type, normalize?, stride (in byte), offset for the 1st element)
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glEnableVertexAttribArray(1); // colors
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
-    glBindVertexArray(0);
-
-    glGenVertexArrays(1, &scene[EARTH_SUBSCENE].vao);
-    glBindVertexArray(scene[EARTH_SUBSCENE].vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[EARTH_SUBSCENE].ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, scene[EARTH_SUBSCENE].vbo_static);
-    glEnableVertexAttribArray(0); // vertices
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glEnableVertexAttribArray(1); // texture
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 6));
-    glEnableVertexAttribArray(2); // normal
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 8));
-    glBindVertexArray(0);
-
-    glGenVertexArrays(1, &scene[SATELLITE_SUBSCENE].vao);
-    glBindVertexArray(scene[SATELLITE_SUBSCENE].vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_static);
-    glEnableVertexAttribArray(0); // vertices
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glBindBuffer(GL_ARRAY_BUFFER, scene[SATELLITE_SUBSCENE].vbo_dynamic); // satellite transformation
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-    glEnableVertexAttribArray(3);
-    glEnableVertexAttribArray(4);
-    // maximum size for vertexAttr is 4. So we split the 4x4matrix into 4x vec4
-    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(0));
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 4));
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 8));
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 12));
-    glVertexAttribDivisor(1, 1); // update transformation attr. every 1 instance instead of every vertex
-    glVertexAttribDivisor(2, 1);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
-    glBindVertexArray(0);
-
     glGenVertexArrays(1, &scene[EDGES_SUBSCENE].vao);
     glBindVertexArray(scene[EDGES_SUBSCENE].vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[EDGES_SUBSCENE].ibo_static);
@@ -673,7 +744,62 @@ void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const 
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::pushSceneToGPU() {
+void OpenGLWidget::pushSceneToGPU(const std::vector<Object>& scene_objects) {
+
+    scene_info.clear();
+    size_t vertex_size = 0;
+    size_t element_size = 0;
+
+    for (const auto& object : scene_objects) {
+        vertex_size += object.totalVertexSize();
+        element_size += object.totalElementSize();
+    }
+
+    // allocate memory on gpu
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_static);                              // set active
+    glBufferData(GL_ARRAY_BUFFER, vertex_size, 0, GL_STATIC_DRAW);          // allocate memory
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_static);                      // set active
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, element_size, 0, GL_STATIC_DRAW); // allocate memory
+
+    // push data to GPU
+    size_t offset_vertices = 0;
+    size_t offset_elements = 0;
+    size_t vertex_count = 0;
+
+    for (const auto& object : scene_objects) {
+        ObjectInfo info(object);
+        info.base_index = vertex_count;
+        info.offset = offset_elements;
+        scene_info.push_back(info);
+        object_names.insert({info.name, scene_info.size() - 1});
+
+        // classify object
+        object_tree[object.gl_program].push_back(scene_info.size() - 1);
+
+        size_t object_size = object.totalVertexSize(); // size of all vertices in byte
+
+        if (object_size != 0) {
+            // all static vertex data
+            glBindBuffer(GL_ARRAY_BUFFER, vbo_static);
+            glBufferSubData(GL_ARRAY_BUFFER, offset_vertices, object_size, &object.vertices[0]);
+            offset_vertices += object_size;
+        }
+
+        // if object is defined by vertex id's, because multiple triangles uses the same vertices
+        if (object.isElementObject()) {
+            size_t object_element_size = object.totalElementSize(); // size of all vertex id's in byte
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_static);
+            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &object.elements[0]);
+            offset_elements += object_element_size;
+        }
+
+        vertex_count += object.vertexCount();
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////
+    // TODO cleanup
+
     for (const Subscene& subscene : scene) {
         // allocate memory on gpu
         glBindBuffer(GL_ARRAY_BUFFER, subscene.vbo_static);                           // set active
@@ -704,6 +830,20 @@ void OpenGLWidget::pushSceneToGPU() {
             }
         }
     }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::vector<ObjectInfo*> OpenGLWidget::getObjectInfo(const std::string& name) {
+    auto results = object_names.equal_range(name);
+    std::vector<ObjectInfo*> infos;
+    for (auto it = results.first; it != results.second; ++it) {
+        if (it->second < scene_info.size()) {
+            infos.push_back(&scene_info[it->second]);
+        }
+    }
+
+    return infos;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -745,17 +885,26 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
             static bool hide_satellites = false;
             if (ImGui::Checkbox("Hide satellites", &hide_satellites)) {
-                scene[SATELLITE_SUBSCENE].setAllEnabled(!hide_satellites);
+                auto infos = getObjectInfo("satellites");
+                for (const auto& obj_info : infos) {
+                    obj_info->enabled = !hide_satellites;
+                }
             }
 
             static bool hide_earth = false;
             if (ImGui::Checkbox("Hide earth", &hide_earth)) {
-                scene[EARTH_SUBSCENE].setAllEnabled(!hide_earth);
+                auto infos = getObjectInfo("central_mass");
+                for (const auto& obj_info : infos) {
+                    obj_info->enabled = !hide_earth;
+                }
             }
 
             static bool hide_orbits = false;
             if (ImGui::Checkbox("Hide orbits", &hide_orbits)) {
-                scene[STATIC_SUBSCENE].setAllEnabled(!hide_orbits);
+                auto infos = getObjectInfo("orbits");
+                for (const auto& obj_info : infos) {
+                    obj_info->enabled = !hide_orbits;
+                }
             }
 
             static bool hide_isl = false;
@@ -770,12 +919,20 @@ void OpenGLWidget::buildGUI() {
                 for (size_t i = edgescene_com_start; i <= edgescene_com_end; i++) {
                     scene[EDGES_SUBSCENE].setEnabled(i, !hide_comms);
                 }
+                auto infos = getObjectInfo("communications_arrowhead");
+                for (const auto& obj_info : infos) {
+                    obj_info->enabled = !hide_comms;
+                }
             }
 
             static bool hide_orientations = false;
             if (ImGui::Checkbox("Hide satellite orientations", &hide_orientations)) {
                 for (size_t i = edgescene_com_end + 1; i < scene[EDGES_SUBSCENE].objectCount(); i++) {
                     scene[EDGES_SUBSCENE].setEnabled(i, !hide_orientations);
+                }
+                auto infos = getObjectInfo("orientation_arrowhead");
+                for (const auto& obj_info : infos) {
+                    obj_info->enabled = !hide_orientations;
                 }
             }
         }
@@ -797,8 +954,13 @@ void OpenGLWidget::destroy() {
     deleteInstance();
     glDeleteProgram(basic_program);
     glDeleteProgram(satellite_prog);
+    glDeleteProgram(earth_prog);
     glDeleteTextures(1, &texture_id[0]);
     glDeleteTextures(1, &texture_id[1]);
+    glDeleteVertexArrays(1, &vao);
+    glDeleteBuffers(1, &ibo_static);
+    glDeleteBuffers(1, &vbo_transformations);
+    glDeleteBuffers(1, &vbo_static);
 
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -808,6 +970,7 @@ void OpenGLWidget::destroy() {
 
 void OpenGLWidget::deleteInstance() {
     state = EMPTY;
+    scene_info.clear();
     // free rescources on GPU
     for (const auto& subscene : scene) {
         glDeleteVertexArrays(1, &subscene.vao);

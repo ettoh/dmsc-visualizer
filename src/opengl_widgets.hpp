@@ -39,10 +39,11 @@ class OpenGLWidget {
     std::vector<OpenGLPrimitives::Object> createLines();
     void recalculateEdges();
     void deleteInstance();
-    void pushSceneToGPU();
+    void pushSceneToGPU(const std::vector<OpenGLPrimitives::Object>& scene_objects);
     void loadTextures(const char* uniform_name, const char* file, GLuint& id);
     void openWindow();
     void createSubscene(OpenGLPrimitives::Subscene& subscene, GLuint program);
+    std::vector<OpenGLPrimitives::ObjectInfo*> getObjectInfo(const std::string& name);
 
     /**
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
@@ -84,15 +85,21 @@ class OpenGLWidget {
 
   private:
     enum Subscenes {
-        STATIC_SUBSCENE = 0,
-        SATELLITE_SUBSCENE,
-        EARTH_SUBSCENE,
-        EDGES_SUBSCENE,
+        EDGES_SUBSCENE = 0,
     }; // do not change - used for array indices
+
+    std::multimap<std::string, size_t> object_names;
+    std::map<GLint, std::vector<size_t>> object_tree; // which program (key) is used for which objects (value)
+
     GLFWwindow* window = nullptr;
     const float real_world_scale = 7000.0f;
     // Handler
     GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
+
+    GLuint vbo_transformations = 0u, vbo_static = 0u, ibo_static = 0u;
+    GLuint vao = 0u;
+    std::vector<OpenGLPrimitives::ObjectInfo> scene_info;
+
     GLuint vbo_uniforms = 0;
     GLuint texture_id[2] = {0, 0};
     // view and camera
@@ -110,7 +117,7 @@ class OpenGLWidget {
     float sim_time = 0.0f;
     int sim_speed = 1;
     bool paused = false; // if true, the simulations is paused
-    std::array<OpenGLPrimitives::Subscene, 4> scene;
+    std::array<OpenGLPrimitives::Subscene, 1> scene;
     size_t edgescene_com_start = ~0u; // object ID where the edges for scheduled communications begin
     size_t edgescene_com_end = ~0u;   // object ID where the edges for scheduled communications end
     // solution
