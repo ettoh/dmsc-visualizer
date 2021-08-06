@@ -1,4 +1,4 @@
-#version 330
+#version 420
 uniform sampler2D earth_day;
 uniform sampler2D specularity_map;
 

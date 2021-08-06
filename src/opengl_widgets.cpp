@@ -34,9 +34,9 @@ void OpenGLWidget::init() {
     if (!glfwInit())
         return;
 
-    const char* glsl_version = "#version 330";
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    const char* glsl_version = "#version 420";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
@@ -131,7 +131,7 @@ void OpenGLWidget::init() {
     glPrimitiveRestartIndex(MAX_ELEMENT_ID);
 
     // OpenGL-Version
-    std::cout << "Open GL 3.3 needed. Given: ";
+    std::cout << "Open GL 4.2 needed. Given: ";
     std::cout << glGetString(GL_VERSION) << std::endl;
 
     // Read shader programs from files
