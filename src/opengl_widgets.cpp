@@ -276,7 +276,6 @@ void OpenGLWidget::renderScene() {
     // for every program (key) a vector with objects is stored
     for (const auto& obj_group : object_tree) {
         glUseProgram(obj_group.first);
-        size_t instance_count = 0;
 
         for (const size_t& obj_idx : obj_group.second) {
             const ObjectInfo& obj = scene_info[obj_idx];
@@ -296,18 +295,17 @@ void OpenGLWidget::renderScene() {
             }
 
             if (obj.enabled) {
-                if (obj.number_instances > 0) { // instanced rendering
+                if (obj.drawInstanced) { // instanced rendering
                     glDrawElementsInstancedBaseVertexBaseInstance(
                         obj.gl_draw_mode, static_cast<GLint>(obj.number_elements), GL_UNSIGNED_SHORT,
                         (void*)(obj.offset), static_cast<GLsizei>(obj.number_instances),
-                        static_cast<GLint>(obj.base_index), static_cast<GLint>(instance_count));
+                        static_cast<GLint>(obj.base_index), static_cast<GLint>(obj.base_instance));
                 } else { // direct rendering with elements
                     glDrawElementsBaseVertex(obj.gl_draw_mode, static_cast<GLint>(obj.number_elements),
                                              GL_UNSIGNED_SHORT, (void*)(obj.offset),
                                              static_cast<GLint>(obj.base_index));
                 }
             }
-            instance_count += obj.number_instances;
         }
     }
 
@@ -380,13 +378,21 @@ void OpenGLWidget::recalculateOrbitPositions() {
     std::vector<glm::mat4> transformations;
     transformations.reserve(problem_instance.getSatellites().size() + problem_instance.scheduled_communications.size());
     glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(zoom))); // ignore zoom
+    size_t instance_count = 0;
 
+    auto infos = getObjectInfo("satellites");
+    for (const auto& obj_info : infos)
+        obj_info->base_instance = instance_count;
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
         glm::mat4 translation = glm::translate(position);
         transformations.push_back(translation * scale);
+        instance_count++;
     }
 
+    infos = getObjectInfo("communications_arrowhead");
+    for (const auto& obj_info : infos)
+        obj_info->base_instance = instance_count;
     for (const auto& c : problem_instance.scheduled_communications) {
         glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
@@ -398,8 +404,12 @@ void OpenGLWidget::recalculateOrbitPositions() {
         glm::mat4 rotation = glm::rotate(angle, axis);
 
         transformations.push_back(translation * rotation * scale);
+        instance_count++;
     }
 
+    infos = getObjectInfo("orientation_arrowhead");
+    for (const auto& obj_info : infos)
+        obj_info->base_instance = instance_count;
     for (const auto& s : problem_instance.getSatellites()) {
         glm::vec3 position = s.cartesian_coordinates(sim_time) / real_world_scale;
         TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&s].previousEvent(sim_time, false);
@@ -429,12 +439,13 @@ void OpenGLWidget::recalculateOrbitPositions() {
 
         glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
         transformations.push_back(translation * scale * rotation);
+        instance_count++;
     }
 
     // push data to VBO
     if (transformations.size() != 0) {
         size_t size_transformation = sizeof(transformations[0]) * transformations.size();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations);                                              // set active
+        glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations);                                      // set active
         glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformations[0], GL_STREAM_DRAW); // push data
     }
 }
@@ -483,7 +494,7 @@ std::vector<Object> OpenGLWidget::createLines() {
         all_lines.push_back(communication_line);
     }
     edgescene_com_start = problem_instance.islCount();
-    edgescene_com_end = edgescene_com_start + problem_instance.scheduled_communications.size() - 1;
+    edgescene_com_end = edgescene_com_start + problem_instance.scheduled_communications.size();
 
     // build satellite orientations
     for (auto const& satellite : problem_instance.getSatellites()) {
@@ -652,6 +663,7 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     Object satellites = OpenGLPrimitives::createSatellite();
     satellites.name = "satellites";
     satellites.gl_program = satellite_prog;
+    satellites.drawInstanced = true;
     // for each satellite in instance we need one copy of the satellite object
     for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
         satellites.object_transformations.push_back(glm::mat4(1.f));
@@ -668,6 +680,7 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     Object cone = OpenGLPrimitives::createCone(0.006f, 0.03f, glm::vec3(.55f, .1f, 1.f));
     cone.name = "communications_arrowhead";
     cone.gl_program = satellite_prog;
+    cone.drawInstanced = true;
     for (int i = 0; i < problem_instance.scheduled_communications.size(); i++) {
         cone.object_transformations.push_back(glm::mat4(1.f));
     }
@@ -677,6 +690,7 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     cone = OpenGLPrimitives::createCone(0.005f, 0.012f, glm::vec3(1.f));
     cone.name = "orientation_arrowhead";
     cone.gl_program = satellite_prog;
+    cone.drawInstanced = true;
     for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
         cone.object_transformations.push_back(glm::mat4(1.f));
     }
@@ -916,7 +930,7 @@ void OpenGLWidget::buildGUI() {
 
             static bool hide_comms = false;
             if (ImGui::Checkbox("Hide scheduled communications", &hide_comms)) {
-                for (size_t i = edgescene_com_start; i <= edgescene_com_end; i++) {
+                for (size_t i = edgescene_com_start; i < edgescene_com_end; i++) {
                     scene[EDGES_SUBSCENE].setEnabled(i, !hide_comms);
                 }
                 auto infos = getObjectInfo("communications_arrowhead");
@@ -927,7 +941,7 @@ void OpenGLWidget::buildGUI() {
 
             static bool hide_orientations = false;
             if (ImGui::Checkbox("Hide satellite orientations", &hide_orientations)) {
-                for (size_t i = edgescene_com_end + 1; i < scene[EDGES_SUBSCENE].objectCount(); i++) {
+                for (size_t i = edgescene_com_end; i < scene[EDGES_SUBSCENE].objectCount(); i++) {
                     scene[EDGES_SUBSCENE].setEnabled(i, !hide_orientations);
                 }
                 auto infos = getObjectInfo("orientation_arrowhead");

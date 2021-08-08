@@ -40,6 +40,7 @@ struct Object {
     GLenum gl_draw_mode = GL_TRIANGLES;
     GLint gl_program = 0; // which programm is used to shade this object
     std::string name = "default";
+    bool drawInstanced = false;
 
     size_t elementCount() const { return elements.size(); }
     size_t vertexCount() const { return vertices.size(); }
@@ -75,6 +76,7 @@ struct ObjectInfo {
     GLenum gl_draw_mode = GL_TRIANGLES;
     size_t offset = 0;
     std::string name = "default";
+    bool drawInstanced = false;
     bool enabled = true;
 
     ObjectInfo(size_t vert, size_t elem, GLenum draw_mode)
@@ -88,6 +90,7 @@ struct ObjectInfo {
         number_vertices = object.vertexCount();
         number_instances = object.instanceCount();
         name = object.name;
+        drawInstanced = object.drawInstanced;
     }
 };
 
