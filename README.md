@@ -31,10 +31,11 @@ soon ...
 ## Real world instances
 The provided real world instances are based on the idealized structure of the corresponding satellite constellation. In particular, the state vectors do not correspond to a more precisely specified point in (real)time. All instances do not contain any intersatellite links.
 
-|instance    |# satellites|orbital altitude|
-|:----------:|:----------:|:--------------:|
-|Galileo     |30          |23.222 km (MEO)  |
-|Iridium Next|66          |780 km (LEO)     |
+|instance    |# satellites|orbital altitude|inclination|eccentricity|orbital planes|
+|:----------:|:----------:|:--------------:|:---------:|:----------:|:------------:|
+|Galileo     |30          |23.222 km (MEO) |56°        |0           |3             |
+|Iridium Next|66          |780 km (LEO)    |86.4°      |0           |6             |
+|OneWeb      |648         |1200 km (LEO)   |87.9°      |0           |12            |
 
 ## Credits / Attributions
 * The textures used for the earth are from [NASA - Visible Earth](https://visibleearth.nasa.gov)
