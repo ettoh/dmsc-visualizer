@@ -5,18 +5,19 @@
 #include "imgui_impl_opengl3.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 #include "dmsc/glm_include.hpp"
-#include <fstream>
+#include "opengl_toolkit.hpp"
+#include "stb_image.h"
+#include <algorithm>
 #include <iostream>
 
 namespace dmsc {
 
+using OpenGLPrimitives::GLBuffer;
 using OpenGLPrimitives::Object;
 using OpenGLPrimitives::ObjectInfo;
-using OpenGLPrimitives::Subscene;
 using OpenGLPrimitives::VertexData;
+using namespace tools;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -54,9 +55,13 @@ void OpenGLWidget::init() {
     glfwSetWindowUserPointer(window, this);
     glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
         OpenGLWidget* p = (OpenGLWidget*)glfwGetWindowUserPointer(window);
-        float zoom_per_deg = .03f * p->zoom * 2.5f; // depends on current zoom value to avoid endless scrolling for
-                                                    // high- and too big jumps for small zoom values
-        p->zoom += static_cast<float>(yoffset) * zoom_per_deg;
+
+        if (glfwGetWindowAttrib(window, GLFW_HOVERED) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
+            !ImGui::IsAnyItemHovered()) {               // ignore if the mouse points to a UI element
+            float zoom_per_deg = .03f * p->zoom * 2.5f; // depends on current zoom value to avoid endless scrolling for
+                                                        // high zoom values and too big jumps for small zoom values
+            p->zoom += static_cast<float>(yoffset) * zoom_per_deg;
+        }
     });
 
     // Mouse click event
@@ -68,8 +73,8 @@ void OpenGLWidget::init() {
             return;
         }
 
-        // if clicked inside the visualization (except UI), begin camera movement - if mouse button released (no matter
-        // where), stop it
+        // if clicked inside the visualization (except UI), begin camera movement - if mouse button
+        // released (no matter where), stop it
         switch (action) {
         case GLFW_PRESS:
             if (glfwGetWindowAttrib(window, GLFW_HOVERED) && !ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) &&
@@ -101,7 +106,8 @@ void OpenGLWidget::init() {
             glfwGetWindowSize(window, &screen_width, &screen_height);
             // moving the mouse along half the screen size rotates the scene by 90 degrees
             glm::vec2 angle = (static_cast<float>(M_PI) / 2.f) * diff / glm::vec2(screen_width / 2, -screen_height / 2);
-            // as long as the mouse button is not released, the changed rotation is applied as an offset
+            // as long as the mouse button is not released, the changed rotation is applied as an
+            // offset
             p->camera_rotation_angle_offset = angle;
         }
     });
@@ -143,13 +149,8 @@ void OpenGLWidget::init() {
     satellite_prog = createProgram(satellite_vert_shader, fragment_shader);
     earth_prog = createProgram(vertex_shader, earth_frag_shader);
 
-    // create uniform buffer
-    glGenBuffers(1, &vbo_uniforms);
-    glBindBuffer(GL_UNIFORM_BUFFER, vbo_uniforms);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), 0, GL_STREAM_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
     // bind uniform vbo to programs
+    glGenBuffers(1, &vbo_uniforms);
     GLuint index = glGetUniformBlockIndex(basic_program, "Global");
     glUniformBlockBinding(basic_program, index, 1);
     glBindBufferBase(GL_UNIFORM_BUFFER, 1, vbo_uniforms);
@@ -161,7 +162,10 @@ void OpenGLWidget::init() {
     // create storage buffer
     glGenBuffers(1, &vbo_static);
     glGenBuffers(1, &ibo_static);
-    glGenBuffers(1, &vbo_transformations);
+    buffer_transformations = GLBuffer<glm::mat4>(GL_DYNAMIC_DRAW);
+    buffer_transformations.gen();
+    buffer_lines = GLBuffer<VertexData>(GL_DYNAMIC_DRAW);
+    buffer_lines.gen();
 
     // create vao
     glGenVertexArrays(1, &vao);
@@ -176,7 +180,7 @@ void OpenGLWidget::init() {
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 6));
     glEnableVertexAttribArray(3); // normals
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 8));
-    glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations); // object transformations
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_transformations.buffer_idx); // object transformations
     glEnableVertexAttribArray(4);
     glEnableVertexAttribArray(5);
     glEnableVertexAttribArray(6);
@@ -190,6 +194,16 @@ void OpenGLWidget::init() {
     glVertexAttribDivisor(5, 1);
     glVertexAttribDivisor(6, 1);
     glVertexAttribDivisor(7, 1);
+    glBindVertexArray(0);
+
+    // create vao for lines
+    glGenVertexArrays(1, &vao_lines);
+    glBindVertexArray(vao_lines);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_lines.buffer_idx);
+    glEnableVertexAttribArray(0); // vertices
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
+    glEnableVertexAttribArray(1); // colors
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
     glBindVertexArray(0);
 
     // load textures
@@ -216,11 +230,15 @@ void OpenGLWidget::loadTextures(const char* uniform_name, const char* file, GLui
     glBindTexture(GL_TEXTURE_2D, id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0,
-                 GL_RGB, // internalformat
-                 w, h, 0,
+    glTexImage2D(GL_TEXTURE_2D,
+                 0,
+                 GL_RGB, // internal format
+                 w,
+                 h,
+                 0,
                  GL_RGB, // target format
-                 GL_UNSIGNED_BYTE, image);
+                 GL_UNSIGNED_BYTE,
+                 image);
     stbi_image_free(image);
     glBindTexture(GL_TEXTURE_2D, 0);
 }
@@ -272,49 +290,49 @@ void OpenGLWidget::openWindow() {
 void OpenGLWidget::renderScene() {
     recalculate();
 
-    glBindVertexArray(vao);
     // for every program (key) a vector with objects is stored
-    for (const auto& obj_group : object_tree) {
-        glUseProgram(obj_group.first);
+    for (const auto& obj : scene) {
+        glUseProgram(obj.gl_program);
+        glBindVertexArray(obj.gl_vao);
 
-        for (const size_t& obj_idx : obj_group.second) {
-            const ObjectInfo& obj = scene_info[obj_idx];
+        if (obj.name == "central_mass") {
+            GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
+            GLint t2 = glGetUniformLocation(earth_prog, "specularity_map");
 
-            if (obj.name == "central_mass") {
-                GLint t1 = glGetUniformLocation(earth_prog, "earth_day");
-                GLint t2 = glGetUniformLocation(earth_prog, "specularity_map");
+            // bind textures
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture_id[0]);
+            glUniform1i(t1, 0);
 
-                // bind textures
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, texture_id[0]);
-                glUniform1i(t1, 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, texture_id[1]);
+            glUniform1i(t2, 1);
+        }
 
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, texture_id[1]);
-                glUniform1i(t2, 1);
-            }
-
-            if (obj.enabled) {
-                if (obj.drawInstanced) { // instanced rendering
-                    glDrawElementsInstancedBaseVertexBaseInstance(
-                        obj.gl_draw_mode, static_cast<GLint>(obj.number_elements), GL_UNSIGNED_SHORT,
-                        (void*)(obj.offset), static_cast<GLsizei>(obj.number_instances),
-                        static_cast<GLint>(obj.base_index), static_cast<GLint>(obj.base_instance));
-                } else { // direct rendering with elements
-                    glDrawElementsBaseVertex(obj.gl_draw_mode, static_cast<GLint>(obj.number_elements),
-                                             GL_UNSIGNED_SHORT, (void*)(obj.offset),
-                                             static_cast<GLint>(obj.base_index));
-                }
+        if (obj.enabled) {
+            if (obj.drawInstanced) { // instanced rendering
+                glDrawElementsInstancedBaseVertexBaseInstance(obj.gl_draw_mode,
+                                                              static_cast<GLint>(obj.number_elements),
+                                                              obj.gl_element_type,
+                                                              (void*)(obj.offset_elements),
+                                                              static_cast<GLsizei>(obj.number_instances),
+                                                              static_cast<GLint>(obj.base_index),
+                                                              static_cast<GLint>(obj.base_instance));
+            } else if (obj.number_elements == 0) { // direct rendering with vertices
+                glDrawArrays(obj.gl_draw_mode,
+                             static_cast<GLint>(obj.offset_vertices),
+                             static_cast<GLsizei>(obj.number_vertices));
+            } else { // direct rendering with elements
+                glDrawElementsBaseVertex(obj.gl_draw_mode,
+                                         static_cast<GLint>(obj.number_elements),
+                                         obj.gl_element_type,
+                                         (void*)(obj.offset_elements),
+                                         static_cast<GLint>(obj.base_index));
             }
         }
     }
 
     glBindVertexArray(0);
-
-    // Draw the scene:
-    for (const Subscene& s : scene) {
-        drawSubscene(s);
-    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -334,8 +352,8 @@ void OpenGLWidget::recalculate() {
     glm::mat4 sun_rotation = glm::rotate(glm::mat4(1.f), sun_angle, glm::vec3(0.f, 1.f, 0.f));
 
     /* Camera circumnavigating around the central mass.
-     * Instead of performing two rotations for the camera, the rotation around the y-axis is done by rotation the entire
-     * world itself. */
+     * Instead of performing two rotations for the camera, the rotation around the y-axis is done by
+     * rotation the entire world itself. */
     glm::vec2 delta = camera_rotation_angle + camera_rotation_angle_offset;
     // the earth can not be circumnavigated along the poles.
     float max_angle_y = static_cast<float>(M_PI) / 2.f - 0.1f;
@@ -346,7 +364,8 @@ void OpenGLWidget::recalculate() {
     glm::mat4 camera_rotation = glm::rotate(glm::mat4(1.f), delta.y, glm::vec3(1.f, 0.f, 0.f));
     glm::mat4 world_rotation = glm::rotate(glm::mat4(1), delta.x, glm::vec3(0.f, 1.f, 0.f));
     glm::vec4 camera_position = camera_rotation * glm::vec4(camera_init_position, 0.f);
-    view = glm::lookAt(glm::vec3(camera_position), glm::vec3(0.0f, 0.0f, 0.0f),
+    view = glm::lookAt(glm::vec3(camera_position),
+                       glm::vec3(0.0f, 0.0f, 0.0f),
                        glm::vec3(0.0f, 1.0f, 0.0f)); // (position, look at, up)
 
     // Calc MVP
@@ -354,108 +373,61 @@ void OpenGLWidget::recalculate() {
     glGetIntegerv(GL_VIEWPORT, viewport);
     projection = glm::perspective(45.0f, 1.0f * viewport[2] / viewport[3], 0.1f, 10.0f);
     glm::mat4 scale = glm::scale(glm::vec3(zoom));
-    // glm::mat4 normal_proj = glm::transpose(glm::inverse(modelview));
 
     // push mvp to VBO
     glBindBuffer(GL_UNIFORM_BUFFER, vbo_uniforms);
-    glBufferData(GL_UNIFORM_BUFFER, 5 * sizeof(glm::mat4), 0, GL_STREAM_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, 5 * sizeof(glm::mat4), 0, GL_DYNAMIC_DRAW);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(world_rotation));
-    glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
+    glBufferSubData(GL_UNIFORM_BUFFER, 1 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
     glBufferSubData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(projection));
     glBufferSubData(GL_UNIFORM_BUFFER, 3 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(scale));
     glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(sun_rotation));
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     // dynamic part of scene
+    buffer_transformations.values.clear();
     recalculateOrbitPositions();
-    recalculateEdges();
+    recalculateLines();
+
+    // push data to VBO
+    if (buffer_transformations.values.size() != 0) {
+        size_t size_transformation = sizeof(buffer_transformations.values[0]) * buffer_transformations.values.size();
+        glBindBuffer(GL_ARRAY_BUFFER, buffer_transformations.buffer_idx); // set active
+        glBufferData(GL_ARRAY_BUFFER,
+                     size_transformation,
+                     &buffer_transformations.values[0],
+                     GL_STREAM_DRAW); // push data
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
 
 void OpenGLWidget::recalculateOrbitPositions() {
     // move satellites
-    std::vector<glm::mat4> transformations;
-    transformations.reserve(problem_instance.getSatellites().size() + problem_instance.scheduled_communications.size());
     glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(zoom))); // ignore zoom
-    size_t instance_count = 0;
 
-    auto infos = getObjectInfo("satellites");
-    for (const auto& obj_info : infos)
-        obj_info->base_instance = instance_count;
+    auto info = getObjectInfo("satellites");
+    if (info != nullptr)
+        info->base_instance = buffer_transformations.size();
     for (const Satellite& o : problem_instance.getSatellites()) {
         glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
         glm::mat4 translation = glm::translate(position);
-        transformations.push_back(translation * scale);
-        instance_count++;
-    }
-
-    infos = getObjectInfo("communications_arrowhead");
-    for (const auto& obj_info : infos)
-        obj_info->base_instance = instance_count;
-    for (const auto& c : problem_instance.scheduled_communications) {
-        glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
-        glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
-
-        glm::mat4 translation = glm::translate(glm::vec3(sat2));
-        glm::vec3 normal = glm::normalize(sat2 - sat1);
-        glm::vec3 axis = glm::vec3(normal.z, 0.f, -normal.x);
-        float angle = acos(normal.y);
-        glm::mat4 rotation = glm::rotate(angle, axis);
-
-        transformations.push_back(translation * rotation * scale);
-        instance_count++;
-    }
-
-    infos = getObjectInfo("orientation_arrowhead");
-    for (const auto& obj_info : infos)
-        obj_info->base_instance = instance_count;
-    for (const auto& s : problem_instance.getSatellites()) {
-        glm::vec3 position = s.cartesian_coordinates(sim_time) / real_world_scale;
-        TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&s].previousEvent(sim_time, false);
-        TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&s].prevailingEvent(sim_time, false);
-
-        if (!last_orientation.isValid()) {
-            last_orientation.t_begin = 0.f;
-            last_orientation.data = glm::vec3(0.f);
-        }
-
-        if (!next_orientation.isValid()) {
-            next_orientation.t_begin = 0.f;
-            next_orientation.data = glm::vec3(0.f);
-        }
-
-        float angle = std::acos(glm::dot(last_orientation.data, next_orientation.data)); // [rad]
-        float dt = sim_time - last_orientation.t_begin;
-
-        glm::vec3 direction_vector = last_orientation.data;
-        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * s.getRotationSpeed()),
-                                       glm::cross(direction_vector, next_orientation.data)) *
-                           0.03f;
-
-        glm::vec3 axis = glm::vec3(direction_vector.z, 0.f, -direction_vector.x);
-        float angle_rot = acos(glm::normalize(direction_vector).y);
-        glm::mat4 rotation = glm::rotate(angle_rot, axis);
-
-        glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
-        transformations.push_back(translation * scale * rotation);
-        instance_count++;
-    }
-
-    // push data to VBO
-    if (transformations.size() != 0) {
-        size_t size_transformation = sizeof(transformations[0]) * transformations.size();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo_transformations);                                      // set active
-        glBufferData(GL_ARRAY_BUFFER, size_transformation, &transformations[0], GL_STREAM_DRAW); // push data
+        buffer_transformations.values.push_back(translation * scale);
     }
 }
 
 // ------------------------------------------------------------------------------------------------
 
-std::vector<Object> OpenGLWidget::createLines() {
-    std::vector<Object> all_lines;
+void OpenGLWidget::recalculateISLNetwork() {
+    auto info = getObjectInfo("isl_network");
+    if (info == nullptr) {
+        printf("Object info for '%s' was not created yet!.\n", "isl_network");
+        assert(false);
+        exit(EXIT_FAILURE);
+    }
+    info->offset_vertices = buffer_lines.size();
 
-    // build ISL network
+    Object isl_network;
     for (uint32_t i = 0; i < problem_instance.islCount(); i++) {
         const InterSatelliteLink& edge = problem_instance.getISLs().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
@@ -469,12 +441,30 @@ std::vector<Object> OpenGLWidget::createLines() {
         }
 
         if (state == SOLUTION) {
+            // hide ISL-edges that are not part of the scan cover (anymore)
+            auto range = scan_cover.equal_range(i);
+            // edge is not part of the scan cover -> hide it
+            if (range.first == scan_cover.end()) {
+                continue;
+            } else {
+                float latest_use = 0.f;
+                for (auto it = range.first; it != range.second; ++it) {
+                    latest_use = std::max(latest_use, it->second);
+                }
+                // edge will not be part of a communication anymore
+                if (latest_use < sim_time) {
+                    continue;
+                }
+            }
+
+            // change color for the next edge that is scanned
             uint32_t next_edge = edge_order.prevailingEvent(sim_time).data;
             if (next_edge == i) { // edge is scanned next
                 color = glm::vec3(1.0f, .75f, 0.0f);
             } else if (edge.isBlocked(sim_time) ||
                        !edge.canAlign(satellite_orientations[&edge.getV1()].previousEvent(sim_time),
-                                      satellite_orientations[&edge.getV2()].previousEvent(sim_time), sim_time)) {
+                                      satellite_orientations[&edge.getV2()].previousEvent(sim_time),
+                                      sim_time)) {
 
                 color = glm::vec3(1.0f, 0.0f, 0.0f);
             } else {
@@ -483,20 +473,68 @@ std::vector<Object> OpenGLWidget::createLines() {
         }
 
         Object edge_line = OpenGLPrimitives::createLine(sat1, sat2, color);
-        all_lines.push_back(edge_line);
+        isl_network.add(edge_line);
     }
 
-    // build schedules communications
+    info->number_vertices = isl_network.vertexCount();
+    buffer_lines.values.insert(buffer_lines.values.end(), isl_network.vertices.begin(), isl_network.vertices.end());
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::recalculateLines() {
+    glm::mat4 scale = glm::inverse(glm::scale(glm::vec3(zoom))); // ignore zoom
+    buffer_lines.values.clear();
+
+    // build ISL network
+    recalculateISLNetwork();
+
+    // build scheduled communications
+    auto info = getObjectInfo("scheduled_communications");
+    if (info == nullptr) {
+        printf("Object info for '%s' was not created yet!.\n", "scheduled_communications");
+        assert(false);
+        exit(EXIT_FAILURE);
+    }
+    info->offset_vertices = buffer_lines.size();
+    Object scheduled_communications;
+
+    auto info_arrowhead = getObjectInfo("communications_arrowhead");
+    if (info_arrowhead != nullptr)
+        info_arrowhead->base_instance = buffer_transformations.size();
     for (const auto& c : problem_instance.scheduled_communications) {
         glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
         Object communication_line = OpenGLPrimitives::createLine(sat1, sat2, glm::vec3(.55f, .1f, 1.f), true);
-        all_lines.push_back(communication_line);
+        scheduled_communications.add(communication_line);
+
+        // model transformation for arrowhead
+        glm::mat4 translation = glm::translate(glm::vec3(sat2));
+        glm::vec3 normal = glm::normalize(sat2 - sat1);
+        glm::vec3 axis = glm::vec3(normal.z, 0.f, -normal.x);
+        float angle = acos(normal.y);
+        glm::mat4 rotation = glm::rotate(angle, axis);
+
+        buffer_transformations.values.push_back(translation * rotation * scale);
     }
-    edgescene_com_start = problem_instance.islCount();
-    edgescene_com_end = edgescene_com_start + problem_instance.scheduled_communications.size();
+
+    info->number_vertices = scheduled_communications.vertexCount();
+    buffer_lines.values.insert(
+        buffer_lines.values.end(), scheduled_communications.vertices.begin(), scheduled_communications.vertices.end());
 
     // build satellite orientations
+    info = getObjectInfo("orientation_lines");
+    if (info == nullptr) {
+        printf("Object info for '%s' was not created yet!.\n", "orientation_lines");
+        assert(false);
+        exit(EXIT_FAILURE);
+    }
+    info->offset_vertices = buffer_lines.size();
+    Object orientation_lines;
+
+    info_arrowhead = getObjectInfo("orientation_arrowhead");
+    if (info_arrowhead != nullptr)
+        info_arrowhead->base_instance = buffer_transformations.size();
     for (auto const& satellite : problem_instance.getSatellites()) {
         glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
         TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&satellite].previousEvent(sim_time, false);
@@ -516,98 +554,26 @@ std::vector<Object> OpenGLWidget::createLines() {
         float dt = sim_time - last_orientation.t_begin;
 
         glm::vec3 direction_vector = last_orientation.data;
-        direction_vector = glm::rotate(direction_vector, std::min(angle, dt * satellite.getRotationSpeed()),
-                                       glm::cross(direction_vector, next_orientation.data));
+        direction_vector = glm::rotate(direction_vector,
+                                       std::min(angle, dt * satellite.getRotationSpeed()),
+                                       glm::cross(direction_vector, next_orientation.data)) *
+                           0.03f;
 
-        all_lines.push_back(
-            OpenGLPrimitives::createLine(position, position + direction_vector * 0.03f, glm::vec3(1.0f)));
+        // model transformation for arrowhead
+        glm::vec3 rotation_axis = glm::vec3(direction_vector.z, 0.f, -direction_vector.x);
+        float rotation_angle = acos(glm::normalize(direction_vector).y);
+        glm::mat4 rotation = glm::rotate(rotation_angle, rotation_axis);
+        glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
+        buffer_transformations.values.push_back(translation * scale * rotation);
+
+        orientation_lines.add(OpenGLPrimitives::createLine(position, position + direction_vector, glm::vec3(1.0f)));
     }
 
-    return all_lines;
-}
+    info->number_vertices = orientation_lines.vertexCount();
+    buffer_lines.values.insert(
+        buffer_lines.values.end(), orientation_lines.vertices.begin(), orientation_lines.vertices.end());
 
-// ------------------------------------------------------------------------------------------------
-
-void OpenGLWidget::recalculateEdges() {
-    std::vector<Object> line_meshes = createLines();
-
-    // push data to gpu
-    size_t offset_vertices = 0;
-    glBindBuffer(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].vbo_dynamic);
-    glBufferData(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].totalVertexSize(), 0, GL_STREAM_DRAW); // allocate memory
-    for (const auto& model : line_meshes) {
-        size_t object_size = model.totalVertexSize(); // size of all vertices in byte
-
-        if (object_size != 0) {
-            glBufferSubData(GL_ARRAY_BUFFER, offset_vertices, object_size, &model.vertices[0]);
-            offset_vertices += object_size;
-        }
-    }
-    // iterate through scan cover
-    if (state == SOLUTION) {
-        // hide all edges that have already been scanned
-        for (uint32_t i = 0; i < problem_instance.getISLs().size(); i++) {
-            auto range = scan_cover.equal_range(i);
-            if (range.first == scan_cover.end()) {
-                scene[EDGES_SUBSCENE].setEnabled(i, false); // edge is not part of the scan cover -> hide it
-            } else {
-                float latest_use = 0.f;
-                for (auto it = range.first; it != range.second; ++it) {
-                    latest_use = std::max(latest_use, it->second);
-                }
-
-                // edge will not be part of a communication anymore
-                if (latest_use < sim_time) {
-                    scene[EDGES_SUBSCENE].setEnabled(i, false); // actually: diables the i-th object in subscene
-                }
-            }
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-void OpenGLWidget::drawSubscene(const Subscene& subscene) {
-    glUseProgram(subscene.program);
-    glBindVertexArray(subscene.vao);
-
-    // draw each object individually
-    size_t offset = 0;
-    size_t offset_elements = 0;
-    for (const ObjectInfo& o : subscene.getObjectInfo()) {
-        if (!o.enabled) {
-            offset_elements += o.number_elements;
-            offset += o.number_vertices;
-            continue;
-        }
-
-        if (o.number_elements != 0) { // object is drawn by elements instead of vertices
-            assert(offset <= INT_MAX || o.number_elements <= INT_MAX);
-            glDrawElementsBaseVertex(o.gl_draw_mode, static_cast<GLint>(o.number_elements), GL_UNSIGNED_SHORT,
-                                     (void*)(offset_elements * sizeof(GLushort)), static_cast<GLint>(offset));
-
-            // skip elements and vertices of this object in the next draw call
-            offset_elements += o.number_elements;
-            offset += o.number_vertices;
-        } else { // object is drawn by vertices
-            assert(offset <= INT_MAX || o.number_vertices <= INT_MAX);
-            glDrawArrays(o.gl_draw_mode, static_cast<GLint>(offset), static_cast<GLsizei>(o.number_vertices));
-            offset += o.number_vertices;
-        }
-    }
-
-    glBindVertexArray(0);
-}
-
-// ------------------------------------------------------------------------------------------------
-
-void OpenGLWidget::createSubscene(Subscene& subscene, GLuint program) {
-    subscene = Subscene();
-    subscene.program = program;
-
-    glGenBuffers(1, &subscene.vbo_static);
-    glGenBuffers(1, &subscene.ibo_static);
-    glGenBuffers(1, &subscene.vbo_dynamic);
+    buffer_lines.pushToGPU();
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -615,14 +581,7 @@ void OpenGLWidget::createSubscene(Subscene& subscene, GLuint program) {
 void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     deleteInstance();
     state = INSTANCE;
-    // copy so visualization does not depend on original instance
-    problem_instance = instance;
-    sim_time = 0.f;
-
-    // 0. init subscenes
-    createSubscene(scene[EDGES_SUBSCENE], basic_program);
-
-    // 1. build meshes and push them to the gpu
+    problem_instance = instance; // copy so visualization does not depend on original instance
     std::vector<Object> objects;
 
     // central mass
@@ -630,31 +589,25 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     sphere.name = "central_mass";
     sphere.gl_program = earth_prog;
+    sphere.gl_vao = vao;
     objects.push_back(sphere);
 
     // orbits
     Object all_orbits;
     all_orbits.gl_draw_mode = GL_LINE_LOOP;
-    all_orbits.name = "orbits";
+    all_orbits.name = "orbit";
     all_orbits.gl_program = basic_program;
+    all_orbits.gl_vao = vao;
     for (const Satellite& o : problem_instance.getSatellites()) {
         // Orbit
         Object orbit = OpenGLPrimitives::createOrbit(o, real_world_scale, glm::vec3(0.0f));
-
-        // the number of vertices is limited by the range of GL_unsigned_short (type of indices)
-        if (all_orbits.vertices.size() + orbit.vertices.size() >= MAX_ELEMENT_ID) {
-            objects.push_back(all_orbits);
-            all_orbits.elements.clear();
-            all_orbits.vertices.clear();
-        }
-
         size_t offset = all_orbits.vertices.size(); // index 0 in orbit object has to refer the correct vertex
         all_orbits.vertices.insert(all_orbits.vertices.end(), orbit.vertices.begin(), orbit.vertices.end());
         all_orbits.elements.reserve(all_orbits.elements.capacity() + orbit.elements.size());
         all_orbits.elements.push_back(MAX_ELEMENT_ID); // restart GL_LINE_LOOP
 
         for (const auto& i : orbit.elements) {
-            all_orbits.elements.push_back(i + static_cast<GLushort>(offset));
+            all_orbits.elements.push_back(i + static_cast<GLuint>(offset));
         }
     }
     objects.push_back(all_orbits);
@@ -663,6 +616,8 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     Object satellites = OpenGLPrimitives::createSatellite();
     satellites.name = "satellites";
     satellites.gl_program = satellite_prog;
+    satellites.gl_vao = vao;
+    satellites.gl_element_type = GL_UNSIGNED_BYTE;
     satellites.drawInstanced = true;
     // for each satellite in instance we need one copy of the satellite object
     for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
@@ -671,15 +626,23 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     objects.push_back(satellites);
 
     // Edges & orientations
-    std::vector<Object> line_meshes = createLines();
-    for (auto& mesh : line_meshes) {
-        scene[EDGES_SUBSCENE].add(mesh);
-    }
+    Object line_obj;
+    line_obj.gl_draw_mode = GL_LINES;
+    line_obj.name = "isl_network";
+    line_obj.gl_program = basic_program;
+    line_obj.gl_vao = vao_lines;
+    objects.push_back(line_obj);
+    line_obj.name = "scheduled_communications";
+    objects.push_back(line_obj);
+    line_obj.name = "orientation_lines";
+    objects.push_back(line_obj);
 
     // build arrowheads for scheduled communications
     Object cone = OpenGLPrimitives::createCone(0.006f, 0.03f, glm::vec3(.55f, .1f, 1.f));
     cone.name = "communications_arrowhead";
     cone.gl_program = satellite_prog;
+    cone.gl_vao = vao;
+    cone.gl_element_type = GL_UNSIGNED_BYTE;
     cone.drawInstanced = true;
     for (int i = 0; i < problem_instance.scheduled_communications.size(); i++) {
         cone.object_transformations.push_back(glm::mat4(1.f));
@@ -690,30 +653,30 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     cone = OpenGLPrimitives::createCone(0.005f, 0.012f, glm::vec3(1.f));
     cone.name = "orientation_arrowhead";
     cone.gl_program = satellite_prog;
+    cone.gl_vao = vao;
+    cone.gl_element_type = GL_UNSIGNED_BYTE;
     cone.drawInstanced = true;
     for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
         cone.object_transformations.push_back(glm::mat4(1.f));
     }
     objects.push_back(cone);
 
-    pushSceneToGPU(objects);
+    // sort objects by their VAO/program in order to reduce sate changes
+    pushStaticSceneToGPU(objects);
+    std::sort(scene.begin(), scene.end());
 
-    // delete vertex data (it is now stored in the gpu memory)
-    scene[EDGES_SUBSCENE].clearObjectData();
-
-    // todo generalize
-    // 2. define format for data
-    /* Create VAO that handle the vbo's and it's format.
-     * All following VBO's and attribPointer will belong to this VAO (until a different VAO is bound). */
-    glGenVertexArrays(1, &scene[EDGES_SUBSCENE].vao);
-    glBindVertexArray(scene[EDGES_SUBSCENE].vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, scene[EDGES_SUBSCENE].ibo_static);
-    glBindBuffer(GL_ARRAY_BUFFER, scene[EDGES_SUBSCENE].vbo_dynamic);
-    glEnableVertexAttribArray(0); // vertices
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
-    glEnableVertexAttribArray(1); // colors
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
-    glBindVertexArray(0);
+    // build map to find objects by name
+    for (int i = 0; i < scene.size(); i++) {
+        const auto& obj = scene[i];
+        if (obj.name != "") {
+            auto res = object_names.insert({obj.name, i});
+            if (!res.second) {
+                printf("Insertion of object '%s' failed.\n", obj.name.c_str());
+                assert(false);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -738,8 +701,8 @@ void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const 
         const InterSatelliteLink& isl = problem_instance.getISLs().at(scan.first);
         EdgeOrientation needed_orientation = isl.getOrientation(t);
 
-        // add corresponding events for both satellites where they have to face in the needed direction in order to
-        // perform the scan
+        // add corresponding events for both satellites where they have to face in the needed
+        // direction in order to perform the scan
         TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation.first);
         TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, needed_orientation.second);
         bool res_1 = satellite_orientations[&isl.getV1()].insert(orientation_sat1);
@@ -758,9 +721,9 @@ void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const 
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::pushSceneToGPU(const std::vector<Object>& scene_objects) {
-
-    scene_info.clear();
+// TODO rework
+void OpenGLWidget::pushStaticSceneToGPU(const std::vector<Object>& scene_objects) {
+    scene.clear();
     size_t vertex_size = 0;
     size_t element_size = 0;
 
@@ -783,12 +746,8 @@ void OpenGLWidget::pushSceneToGPU(const std::vector<Object>& scene_objects) {
     for (const auto& object : scene_objects) {
         ObjectInfo info(object);
         info.base_index = vertex_count;
-        info.offset = offset_elements;
-        scene_info.push_back(info);
-        object_names.insert({info.name, scene_info.size() - 1});
-
-        // classify object
-        object_tree[object.gl_program].push_back(scene_info.size() - 1);
+        info.offset_elements = offset_elements;
+        scene.push_back(info);
 
         size_t object_size = object.totalVertexSize(); // size of all vertices in byte
 
@@ -803,61 +762,37 @@ void OpenGLWidget::pushSceneToGPU(const std::vector<Object>& scene_objects) {
         if (object.isElementObject()) {
             size_t object_element_size = object.totalElementSize(); // size of all vertex id's in byte
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_static);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &object.elements[0]);
+
+            switch (object.gl_element_type) {
+            case GL_UNSIGNED_SHORT:
+                glBufferSubData(
+                    GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &object.elements_16()[0]);
+                break;
+            case GL_UNSIGNED_BYTE:
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &object.elements_8()[0]);
+                break;
+            default:
+                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &object.elements[0]);
+                break;
+            }
+
             offset_elements += object_element_size;
         }
-
         vertex_count += object.vertexCount();
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////////
-    // TODO cleanup
-
-    for (const Subscene& subscene : scene) {
-        // allocate memory on gpu
-        glBindBuffer(GL_ARRAY_BUFFER, subscene.vbo_static);                           // set active
-        glBufferData(GL_ARRAY_BUFFER, subscene.totalVertexSize(), 0, GL_STATIC_DRAW); // allocate memory
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subscene.ibo_static);                   // set active
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, subscene.totalElementSize(), 0,
-                     GL_STATIC_DRAW); // allocate memory
-
-        // push data to gpu
-        size_t offset_vertices = 0;
-        size_t offset_elements = 0;
-        for (const auto& model : subscene.getObjects()) {
-            size_t object_size = model.totalVertexSize(); // size of all vertices in byte
-
-            if (object_size != 0) {
-                // all static vertex data
-                glBindBuffer(GL_ARRAY_BUFFER, subscene.vbo_static);
-                glBufferSubData(GL_ARRAY_BUFFER, offset_vertices, object_size, &model.vertices[0]);
-                offset_vertices += object_size;
-            }
-
-            // if object is defined by vertex id's, because multiple triangles uses the same vertices
-            if (model.isElementObject()) {
-                size_t object_element_size = model.totalElementSize(); // size of all vertex id's in byte
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, subscene.ibo_static);
-                glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, offset_elements, object_element_size, &model.elements[0]);
-                offset_elements += object_element_size;
-            }
-        }
     }
 }
 
 // ------------------------------------------------------------------------------------------------
 
-std::vector<ObjectInfo*> OpenGLWidget::getObjectInfo(const std::string& name) {
-    auto results = object_names.equal_range(name);
-    std::vector<ObjectInfo*> infos;
-    for (auto it = results.first; it != results.second; ++it) {
-        if (it->second < scene_info.size()) {
-            infos.push_back(&scene_info[it->second]);
-        }
+ObjectInfo* OpenGLWidget::getObjectInfo(const std::string& name) {
+    auto result = object_names.find(name);
+    if (result != object_names.end()) {
+        if (result->second < scene.size())
+            return &scene[result->second];
     }
 
-    return infos;
+    printf("There is no object with the name '%s'!\n", name.c_str());
+    return nullptr;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -870,9 +805,8 @@ void OpenGLWidget::buildGUI() {
 
     // Simulation control panel
     {
+        ImGui::SetNextWindowSizeConstraints(ImVec2(340, 180), ImVec2(1500, 1500));
         ImGui::Begin("Simulation control panel"); // Create a window and append into it.
-
-        ImGui::SetWindowSize(ImVec2(350, 300));
 
         ImGui::PushItemWidth(ImGui::GetFontSize() * -12);
         const char* btn_text = paused ? "Play" : "Pause";
@@ -883,7 +817,6 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::Button("Restart")) {
             sim_time = 0.f;
             sim_speed = 1;
-            scene[EDGES_SUBSCENE].setAllEnabled(true);
         }
         ImGui::SameLine();
         if (ImGui::Button("Reset camera")) {
@@ -899,59 +832,55 @@ void OpenGLWidget::buildGUI() {
         if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_None)) {
             static bool hide_satellites = false;
             if (ImGui::Checkbox("Hide satellites", &hide_satellites)) {
-                auto infos = getObjectInfo("satellites");
-                for (const auto& obj_info : infos) {
-                    obj_info->enabled = !hide_satellites;
-                }
+                auto info = getObjectInfo("satellites");
+                if (info != nullptr)
+                    info->enabled = !hide_satellites;
             }
 
             static bool hide_earth = false;
             if (ImGui::Checkbox("Hide earth", &hide_earth)) {
-                auto infos = getObjectInfo("central_mass");
-                for (const auto& obj_info : infos) {
-                    obj_info->enabled = !hide_earth;
-                }
+                auto info = getObjectInfo("central_mass");
+                if (info != nullptr)
+                    info->enabled = !hide_earth;
             }
 
             static bool hide_orbits = false;
             if (ImGui::Checkbox("Hide orbits", &hide_orbits)) {
-                auto infos = getObjectInfo("orbits");
-                for (const auto& obj_info : infos) {
-                    obj_info->enabled = !hide_orbits;
-                }
+                auto info = getObjectInfo("orbit");
+                if (info != nullptr)
+                    info->enabled = !hide_orbits;
             }
 
             static bool hide_isl = false;
             if (ImGui::Checkbox("Hide ISL-network", &hide_isl)) {
-                for (size_t i = 0; i < edgescene_com_start; i++) {
-                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_isl);
-                }
+                auto info = getObjectInfo("isl_network");
+                if (info != nullptr)
+                    info->enabled = !hide_isl;
             }
 
             static bool hide_comms = false;
             if (ImGui::Checkbox("Hide scheduled communications", &hide_comms)) {
-                for (size_t i = edgescene_com_start; i < edgescene_com_end; i++) {
-                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_comms);
-                }
-                auto infos = getObjectInfo("communications_arrowhead");
-                for (const auto& obj_info : infos) {
-                    obj_info->enabled = !hide_comms;
-                }
+                auto info = getObjectInfo("scheduled_communications");
+                if (info != nullptr)
+                    info->enabled = !hide_comms;
+                info = getObjectInfo("communications_arrowhead");
+                if (info != nullptr)
+                    info->enabled = !hide_comms;
             }
 
             static bool hide_orientations = false;
             if (ImGui::Checkbox("Hide satellite orientations", &hide_orientations)) {
-                for (size_t i = edgescene_com_end; i < scene[EDGES_SUBSCENE].objectCount(); i++) {
-                    scene[EDGES_SUBSCENE].setEnabled(i, !hide_orientations);
-                }
-                auto infos = getObjectInfo("orientation_arrowhead");
-                for (const auto& obj_info : infos) {
-                    obj_info->enabled = !hide_orientations;
-                }
+                auto info = getObjectInfo("orientation_lines");
+                if (info != nullptr)
+                    info->enabled = !hide_orientations;
+                info = getObjectInfo("orientation_arrowhead");
+                if (info != nullptr)
+                    info->enabled = !hide_orientations;
             }
         }
 
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
+        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                    1000.0f / ImGui::GetIO().Framerate,
                     ImGui::GetIO().Framerate);
         ImGui::End();
     }
@@ -972,10 +901,10 @@ void OpenGLWidget::destroy() {
     glDeleteTextures(1, &texture_id[0]);
     glDeleteTextures(1, &texture_id[1]);
     glDeleteVertexArrays(1, &vao);
+    glDeleteVertexArrays(1, &vao_lines);
     glDeleteBuffers(1, &ibo_static);
-    glDeleteBuffers(1, &vbo_transformations);
     glDeleteBuffers(1, &vbo_static);
-
+    glDeleteBuffers(1, &vbo_uniforms);
     glfwDestroyWindow(window);
     glfwTerminate();
 }
@@ -984,76 +913,10 @@ void OpenGLWidget::destroy() {
 
 void OpenGLWidget::deleteInstance() {
     state = EMPTY;
-    scene_info.clear();
-    // free rescources on GPU
-    for (const auto& subscene : scene) {
-        glDeleteVertexArrays(1, &subscene.vao);
-        glDeleteBuffers(1, &subscene.ibo_static);
-        glDeleteBuffers(1, &subscene.vbo_dynamic);
-        glDeleteBuffers(1, &subscene.vbo_static);
-    }
-
-    edgescene_com_start = ~0u;
-    edgescene_com_end = ~0u;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-std::string OpenGLWidget::readShader(const std::string& file_name) {
-    std::ifstream file(file_name);
-    if (!file) {
-        printf("Failed to load shader %s\n", file_name.c_str());
-        assert(false);
-        exit(EXIT_FAILURE);
-    }
-
-    std::string shader = "";
-    std::string buffer;
-    while (getline(file, buffer)) {
-        shader.append(buffer + "\n");
-    }
-
-    return shader;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-GLuint OpenGLWidget::createShader(const std::string& file_name, GLenum shader_type) {
-    GLint compile_flag = GL_FALSE;
-    GLuint shader = glCreateShader(shader_type);
-
-    // Read source code
-    std::string sourcecode = readShader(file_name);
-    const GLchar* source = sourcecode.c_str();
-    glShaderSource(shader, 1, &source, NULL); // read an array of source files
-
-    // Compile shader
-    glCompileShader(shader);
-    glGetShaderiv(shader, GL_COMPILE_STATUS,
-                  &compile_flag); // get infos about the shader object and store it into compile_ok
-    if (!compile_flag) {
-        std::cout << "Error in compiling shader: '" + file_name + "'!" << std::endl;
-    }
-
-    return shader;
-}
-
-// ------------------------------------------------------------------------------------------------
-
-GLuint OpenGLWidget::createProgram(const GLuint vertex_shader, const GLuint fragment_shader) {
-    GLuint program = glCreateProgram();
-    GLint link_ok = GL_FALSE;
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-    glGetProgramiv(program, GL_LINK_STATUS, &link_ok);
-    if (!link_ok) {
-        printf("Error in glLinkProgram\n");
-        assert(false);
-        exit(EXIT_FAILURE);
-    }
-
-    return program;
+    scene.clear();
+    object_names.clear();
+    sim_speed = 1;
+    sim_time = 0.f;
 }
 
 } // namespace dmsc

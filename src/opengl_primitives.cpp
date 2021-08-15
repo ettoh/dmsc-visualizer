@@ -1,11 +1,59 @@
 #include "opengl_primitives.hpp"
 
 namespace dmsc {
+namespace OpenGLPrimitives {
 
-using OpenGLPrimitives::Object;
+/////////////////////////////////////
+/// Object
+/////////////////////////////////////
 
-Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy,
-                                      const glm::vec3 color) {
+size_t Object::totalVertexSize() const {
+    if (vertices.size() != 0)
+        return sizeof(vertices[0]) * vertices.size();
+    return 0;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+size_t Object::totalElementSize() const {
+    if (elements.size() != 0) {
+        switch (gl_element_type) {
+        case GL_UNSIGNED_SHORT:
+            return sizeof(GLushort) * elements.size();
+        case GL_UNSIGNED_BYTE:
+            return sizeof(GLubyte) * elements.size();
+        default:
+            return sizeof(elements[0]) * elements.size();
+        }
+    }
+    return 0;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::vector<GLushort> Object::elements_16() const {
+    std::vector<GLushort> result;
+    for (const auto& e : elements) {
+        result.push_back(static_cast<GLushort>(e));
+    }
+    return result;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+std::vector<GLubyte> Object::elements_8() const {
+    std::vector<GLubyte> result;
+    for (const auto& e : elements) {
+        result.push_back(static_cast<GLubyte>(e));
+    }
+    return result;
+}
+
+/////////////////////////////////////
+// Object meshes
+/////////////////////////////////////
+
+Object createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy, const glm::vec3 color) {
     unsigned short number_of_stacks = accuracy;
     unsigned short number_of_sectors = accuracy * 2;
     float stack_step = static_cast<float>(M_PI) / number_of_stacks;
@@ -90,7 +138,7 @@ Object OpenGLPrimitives::createSphere(const float radius, const glm::vec3 center
 
 // ------------------------------------------------------------------------------------------------
 
-Object OpenGLPrimitives::createSatellite() {
+Object createSatellite() {
     Object model = Object();
     model.gl_draw_mode = GL_TRIANGLES;
 
@@ -99,7 +147,7 @@ Object OpenGLPrimitives::createSatellite() {
 
 // ------------------------------------------------------------------------------------------------
 
-Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
+Object createOrbit(const Satellite& orbit, const float scale, const glm::vec3 center) {
     unsigned int number_of_sides = 130u;
     Object model = Object();
     model.gl_draw_mode = GL_LINE_LOOP;
@@ -119,7 +167,7 @@ Object OpenGLPrimitives::createOrbit(const Satellite& orbit, const float scale, 
 
 // ------------------------------------------------------------------------------------------------
 
-Object OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
+Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
     Object m = Object();
     m.gl_draw_mode = GL_LINES;
 
@@ -145,8 +193,7 @@ Object OpenGLPrimitives::createLine(const glm::vec3& p1, const glm::vec3& p2, co
 
 // ------------------------------------------------------------------------------------------------
 
-Object OpenGLPrimitives::createPipe(const float radius, const float height, const glm::vec3 color,
-                                    const unsigned int sector_count) {
+Object createPipe(const float radius, const float height, const glm::vec3 color, const unsigned int sector_count) {
     Object m = Object();
     m.gl_draw_mode = GL_TRIANGLE_STRIP;
     if (sector_count < 3)
@@ -193,8 +240,8 @@ Object OpenGLPrimitives::createPipe(const float radius, const float height, cons
 
 // ------------------------------------------------------------------------------------------------
 
-Object OpenGLPrimitives::createCone(const float base_radius, const float height, const glm::vec3 color,
-                                    const unsigned short sector_count) {
+Object createCone(const float base_radius, const float height, const glm::vec3 color,
+                  const unsigned short sector_count) {
     Object m = Object();
     m.gl_draw_mode = GL_TRIANGLES;
     if (sector_count < 3)
@@ -230,7 +277,7 @@ Object OpenGLPrimitives::createCone(const float base_radius, const float height,
 
         glm::vec3 normal(nx * cos(angle), ny, nx * sin(angle)); // rotation of initial normal
         v.normal = glm::normalize(normal);
-        top_vertex.normal = glm::normalize(normal + glm::vec3(0, -1, 0)); // bisector 
+        top_vertex.normal = glm::normalize(normal + glm::vec3(0, -1, 0)); // bisector
         m.vertices.push_back(top_vertex);
         m.vertices.push_back(v);
 
@@ -259,4 +306,5 @@ Object OpenGLPrimitives::createCone(const float base_radius, const float height,
     return m;
 }
 
+} // namespace OpenGLPrimitives
 } // namespace dmsc

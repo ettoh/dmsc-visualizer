@@ -1,5 +1,6 @@
 AlwaysBreakTemplateDeclarations: Yes
 BasedOnStyle: LLVM
+BinPackArguments: false
 BreakConstructorInitializers: BeforeComma
 ColumnLimit: 120
 IndentWidth: 4

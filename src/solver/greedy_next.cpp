@@ -40,7 +40,7 @@ Solution GreedyNext::solve() {
             }
 
             // it's not getting better
-            if (t_next == 0)
+            if (t_next - curr_time == 0.f)
                 break;
         }
 

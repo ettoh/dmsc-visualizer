@@ -64,7 +64,8 @@ target_sources(dmsc
         src/visuals.cpp
         src/instance.cpp
         src/opengl_widgets.cpp
-        src/opengl_primitives.cpp        
+        src/opengl_primitives.cpp
+        src/opengl_toolkit.cpp
         ${solver_files}
         ${external_files}
 )
