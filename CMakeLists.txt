@@ -33,11 +33,36 @@ macro(copy_resources target)
         VERBATIM)
 endmacro()
 
+# Options
+OPTION(DMSC_BUILD_SAMPLES
+    "Set to ON to build the examples." 
+    ON
+)
+OPTION(DMSC_CREATE_DOCS
+    "Set to ON to create the docs." 
+    OFF
+)
+
 # Examples
-OPTION(BUILD_SAMPLES
-    "If the examples are built as well." ON)
-if(BUILD_SAMPLES)
+if(DMSC_BUILD_SAMPLES)
     add_subdirectory(./examples)
+endif()
+
+# docs
+if(DMSC_CREATE_DOCS)
+    find_package(Doxygen REQUIRED)
+    SET(doxyfile "${CMAKE_CURRENT_BINARY_DIR}/docs/doxyconfig")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/docs/doxyconfig
+        ${CMAKE_CURRENT_BINARY_DIR}/docs/doxyconfig
+        @ONLY
+    )
+    add_custom_target(
+        doc ALL
+        COMMAND ${DOXYGEN_EXECUTABLE} ${doxyfile}
+        COMMENT "Generating documentation with Doxygen"
+        VERBATIM
+    )
 endif()
 
 # external source files

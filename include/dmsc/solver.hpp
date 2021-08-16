@@ -9,7 +9,8 @@
 
 namespace dmsc {
 
-using ScanCover = std::multimap<uint32_t, float>; // when an edge is scanned - time in [sec]
+/// when an edge is scanned - time in [sec]
+using ScanCover = std::multimap<uint32_t, float>;
 
 struct Solution {
     float computation_time = 0.f; // [sec]

@@ -1,0 +1,16 @@
+INPUT                  = @PROJECT_SOURCE_DIR@/README.md \
+                         @PROJECT_SOURCE_DIR@/include/dmsc
+RECURSIVE              = YES
+INPUT_ENCODING         = UTF-8
+HTML_OUTPUT            = @CMAKE_CURRENT_BINARY_DIR@/docs/html
+GENERATE_LATEX         = NO
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "DMSC Visualizer"
+PROJECT_BRIEF          = A library to visualize (keplerian) orbital movements of a satellite network in 3D using OpenGL® 4.2.
+OUTPUT_LANGUAGE        = English
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = YES
+TAB_SIZE               = 4
+WARNINGS               = YES
+GENERATE_TREEVIEW      = YES
+DISABLE_INDEX          = YES
