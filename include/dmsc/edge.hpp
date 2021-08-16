@@ -12,7 +12,6 @@ using EdgeOrientation = std::pair<glm::vec3, glm::vec3>;
 
 class InterSatelliteLink {
   public:
-    // only defined for circular Orbits!
     InterSatelliteLink(const uint32_t& v1_idx, const uint32_t& v2_idx, const std::vector<Satellite>& satellites,
                        const CentralMass cm)
         : v1_idx(v1_idx)
@@ -31,31 +30,35 @@ class InterSatelliteLink {
         if (v1->getSemiMajorAxis() != v2->getSemiMajorAxis()) {
             period = v1->getPeriod() * v2->getPeriod(); // [sec]
         }
-
-        max_angle = std::acos(cm.radius_central_mass / v1->getSemiMajorAxis()) +
-                    std::acos(cm.radius_central_mass / v2->getSemiMajorAxis()); // [rad]
     };
 
     /**
-     * @brief !ONLY DEFINED FOR CIRCULAR ORBTIS!
-     * @return True, if edge is blocked.
+     * Returns true, if the edge is blocked at the given time.
      */
     bool isBlocked(const float time) const {
+        // represent edge as a unit vector with origin at one of the satellites
         glm::vec3 sat1 = v1->cartesian_coordinates(time);
         glm::vec3 sat2 = v2->cartesian_coordinates(time);
+        glm::vec3 direction = glm::normalize(sat2 - sat1);
 
-        if (v1->getEccentricity() == 0.0f &&
-            v2->getEccentricity() == 0.0f) { // both satellites are circular => easier to compute
-            double angle_sats =
-                std::acos(glm::dot(sat1, sat2) / (v1->getSemiMajorAxis() * v2->getSemiMajorAxis())); // [rad]
+        // check for intersection with a sphere (earth)
+        glm::vec3 sphere_center = glm::vec3(0.f);
+        glm::vec3 origin = sat1 - sphere_center;
 
-            glm::vec3 tmp = sat1 + sat2;
-            if (std::abs(tmp.x) < 0.01f && std::abs(tmp.y) < 0.01f && std::abs(tmp.z) < 0.01f) {
-                angle_sats = M_PI;
-            }
-            return angle_sats > max_angle;
-        } else { // elliptical Orbits => radius length not contant
-            return true;
+        float a = glm::dot(direction, direction);
+        float b = 2.f * glm::dot(origin, direction);
+        float c = glm::dot(origin, origin) - cm.radius_central_mass * cm.radius_central_mass;
+        float discr = b * b - 4 * a * c;
+
+        if (discr < .0f) { // no intersection at all
+            return false;
+        } else { // intersection possible (in front of or behind the ray-origin)
+            float t = -b - sqrt(discr);
+            if (t > .0f)
+                return true;
+
+            t = -b + sqrt(discr);
+            return t > .0f;
         }
     }
 
@@ -114,7 +117,6 @@ class InterSatelliteLink {
 
     // GETTER
     float getPeriod() const { return period; }
-    float getMaxAngle() const { return max_angle; }
     const Satellite& getV1() const { return *v1; }
     const Satellite& getV2() const { return *v2; }
     uint32_t getV1Idx() const { return v1_idx; }
@@ -126,8 +128,7 @@ class InterSatelliteLink {
     const Satellite* v2;
     uint32_t v1_idx;
     uint32_t v2_idx;
-    float period;    // [sec] time until satellite constellations repeat
-    float max_angle; // [rad] max angle for satellites to see each other
+    float period; // [sec] time until satellite constellations repeat
     CentralMass cm;
 };
 
