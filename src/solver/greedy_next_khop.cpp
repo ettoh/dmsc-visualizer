@@ -100,9 +100,9 @@ Solution GreedyNextKHop::solve() {
         }
 
         // update satellite orientations
-        EdgeOrientation new_orientations = isl->getOrientation(t_next);
-        satellite_orientation[&isl->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.first);
-        satellite_orientation[&isl->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.second);
+        glm::vec3 new_orientations = isl->getOrientation(t_next);
+        satellite_orientation[&isl->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations);
+        satellite_orientation[&isl->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, -new_orientations);
 
         // update time
         curr_time = t_next;

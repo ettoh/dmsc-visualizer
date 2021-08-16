@@ -46,9 +46,9 @@ Solution GreedyNext::solve() {
 
         // refresh orientation of chosen satellites.
         const InterSatelliteLink* e = remaining_edges.at(best_edge_pos);
-        EdgeOrientation new_orientations = e->getOrientation(t_next);
-        satellite_orientation[&e->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.first);
-        satellite_orientation[&e->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations.second);
+        glm::vec3 new_orientations = e->getOrientation(t_next);
+        satellite_orientation[&e->getV1()] = TimelineEvent<glm::vec3>(t_next, t_next, new_orientations);
+        satellite_orientation[&e->getV2()] = TimelineEvent<glm::vec3>(t_next, t_next, -new_orientations);
 
         // map position in remaining edges to position in all edges
         std::ptrdiff_t edge_index = remaining_edges[best_edge_pos] - &instance.getISLs()[0];

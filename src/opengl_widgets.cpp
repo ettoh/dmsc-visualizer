@@ -699,12 +699,12 @@ void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const 
 
         float t = scan.second; // time when edge is scheduled
         const InterSatelliteLink& isl = problem_instance.getISLs().at(scan.first);
-        EdgeOrientation needed_orientation = isl.getOrientation(t);
+        glm::vec3 needed_orientation = isl.getOrientation(t);
 
         // add corresponding events for both satellites where they have to face in the needed
         // direction in order to perform the scan
-        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation.first);
-        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, needed_orientation.second);
+        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation);
+        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, -needed_orientation);
         bool res_1 = satellite_orientations[&isl.getV1()].insert(orientation_sat1);
         bool res_2 = satellite_orientations[&isl.getV2()].insert(orientation_sat2);
 

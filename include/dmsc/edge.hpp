@@ -8,8 +8,6 @@
 
 namespace dmsc {
 
-using EdgeOrientation = std::pair<glm::vec3, glm::vec3>;
-
 class InterSatelliteLink {
   public:
     InterSatelliteLink(const uint32_t& v1_idx, const uint32_t& v2_idx, const std::vector<Satellite>& satellites,
@@ -70,7 +68,7 @@ class InterSatelliteLink {
      * @param t [sec] Time when the satellites have to face each other.
      */
     bool canAlign(const TimelineEvent<glm::vec3>& sat1, const TimelineEvent<glm::vec3>& sat2, const float t) const {
-        EdgeOrientation target = getOrientation(t);
+        glm::vec3 target = getOrientation(t);
         float angle_sat1 = .0f;
         float angle_sat2 = .0f;
         float time_sat1 = .0f;
@@ -78,14 +76,14 @@ class InterSatelliteLink {
 
         // calc angle between orientations; direction vectors must be length 1
         if (sat1.isValid()) {
-            angle_sat1 = std::acos(glm::dot(sat1.data, target.first)); // [rad]
+            angle_sat1 = std::acos(glm::dot(sat1.data, target)); // [rad]
             time_sat1 = sat1.t_begin;
         } else {
             time_sat1 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
         }
 
         if (sat2.isValid()) {
-            angle_sat2 = std::acos(glm::dot(sat2.data, target.second)); // [rad]
+            angle_sat2 = std::acos(glm::dot(sat2.data, -target)); // [rad]
             time_sat2 = sat2.t_begin;
         } else {
             time_sat2 = 0.f; // event is invalid, so assume that sat1 was not part of a communication yet
@@ -104,15 +102,15 @@ class InterSatelliteLink {
     }
 
     /**
-     * @brief Calculate the directions for both satellites to face each other.
+     * @brief Calculate the directions for both satellites to face each other. Because both satellites have to face each
+     * other, the direction of satellite A is the negative direction of satellite B.
      * @param t [sec] time
-     * @return Two direction vectors at the time when they face each other.
+     * @return Direction vector for one of the satellites (origin) at the time when they face each other.
      */
-    EdgeOrientation getOrientation(const float time) const {
+    glm::vec3 getOrientation(const float time) const {
         glm::vec3 sat1 = v1->cartesian_coordinates(time);
         glm::vec3 sat2 = v2->cartesian_coordinates(time);
-
-        return {glm::normalize(sat2 - sat1), glm::normalize(sat1 - sat2)};
+        return glm::normalize(sat2 - sat1);
     }
 
     // GETTER
