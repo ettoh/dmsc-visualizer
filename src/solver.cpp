@@ -7,18 +7,6 @@
 
 namespace dmsc {
 
-/* float Solver::lowerBound() {
-    float lower_bound = 0;
-    for (const InterSatelliteLink& e : instance.getEdges()) {
-        float t = nextVisibility(e, 0.0);
-        if (t > lower_bound && t < INFINITY)
-            lower_bound = t;
-    }
-    return lower_bound;
-} */
-
-// ------------------------------------------------------------------------------------------------
-
 float Solver::nextCommunication(const InterSatelliteLink& edge, const float time_0) {
     // edge is never visible?
     float t_visible = nextVisibility(edge, time_0);

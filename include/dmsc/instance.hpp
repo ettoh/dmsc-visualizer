@@ -9,40 +9,58 @@
 
 namespace dmsc {
 
+/// Indices of two satellites that are supposed to communicate.
 using ScheduledCommunication = std::pair<uint32_t, uint32_t>;
 
+// ------------------------------------------------------------------------------------------------
+
 /**
- * @brief Which satellites can communicate with each other and at what cost.
+ * @brief Adjacency list that describes which satellites can communicate with each other and at what costs.
+ *
+ * Instead of an adjacency matrix, we use an adjacency list to avoid superfluous entries and thus significantly reduce
+ * memory consumption. In order to still be able to access elements directly, we store the data of each row in a map.
  */
 class AdjacencyList {
   public:
+    /**
+     * @brief Struct that holds all properties of an communication between two satellites.
+     */
     struct Item {
-        uint32_t weight = ~0u;
-        uint32_t isl_idx = ~0u; // index of isl-object in physical instance
+        uint32_t weight = ~0u;  // costs of this communication
+        uint32_t isl_idx = ~0u; // index of a isl-object in the physical instance
         Item() = default;
         Item(const uint32_t weight, const uint32_t isl_idx)
             : weight(weight)
             , isl_idx(isl_idx) {}
     };
 
+    /**
+     * @brief In order to be able to access elements directly (like an adjacency matrix), we store the data of each
+     * row in a map instead of a list. This way we can acces elements by matrix[row][column].
+     */
+    std::vector<std::map<uint32_t, Item>> matrix;
+
     AdjacencyList() = delete;
     AdjacencyList(const size_t size, const Item& default_value);
     std::map<uint32_t, Item>& operator[](size_t row) { return matrix[row]; }
     const std::map<uint32_t, Item>& operator[](size_t row) const { return matrix[row]; }
     void clear();
-
-    std::vector<std::map<uint32_t, Item>> matrix;
 };
 
 // ------------------------------------------------------------------------------------------------
 
+/**
+ * @brief Different types of edges between satellites.
+ */
 enum class EdgeType {
     INTERSATELLITE_LINK,     // undirected; two satellites can communicate via ISL
     SCHEDULED_COMMUNICATION, // directed; satellite A has to send data to satellite B
 };
 
+// ------------------------------------------------------------------------------------------------
+
 /**
- * @brief Edge between two vertices.
+ * @brief Edge between two satellites.
  */
 struct Edge {
     uint32_t from_idx; // Index of vertices. If Edge is not bidirectional, this is the origin.
@@ -58,10 +76,13 @@ struct Edge {
 // ------------------------------------------------------------------------------------------------
 
 /**
- * @brief Contains all the necessary data for the movement of satellites and graphs that define the connections between
+ * @brief Contains all necessary data for the movement of satellites and the graphs that define the connections between
  * satellites. No additional calculations are performed. You can change everything anytime you want.
- * All derived values for the visualization and solver are only calculated when the instance is converted into a
+ * All derived values for the visualization and solvers are only calculated when the instance is converted into a
  * PhysicalInstance.
+ *
+ * An instance is basically a snapshot of satellites moving around a central mass. The current position of satellites
+ * and their movement is defined. From there (t = 0) we can calculate the satellite positions at a given time t.
  */
 struct Instance {
     CentralMass cm; // Properties of the central mass
@@ -79,6 +100,8 @@ struct Instance {
 
     /**
      * @brief Save the instance to the given file.
+     *
+     * @param file Path to the location where the instance should be saved.
      */
     void save(const std::string& file) const;
 
@@ -89,7 +112,7 @@ struct Instance {
 // ------------------------------------------------------------------------------------------------
 
 /**
- * @brief Takes an instance and calculate additional values, that are needed in order to evaluate this instance
+ * @brief Takes an instance and calculate additional values that are needed in order to evaluate this instance
  * (visualization and solver). Once this is done, you cannot change the resulting physical instance. Don't try to get
  * around this - you could get wrong result without noticing!
  */
@@ -97,7 +120,7 @@ class PhysicalInstance {
   public:
     PhysicalInstance() = default;
     PhysicalInstance(const Instance& raw_instance);
-    PhysicalInstance(const PhysicalInstance& source); // Copy
+    PhysicalInstance(const PhysicalInstance& source);
     PhysicalInstance& operator=(const PhysicalInstance& source);
 
     /**
@@ -106,6 +129,7 @@ class PhysicalInstance {
      */
     void removeInvalidISL();
 
+    // ISLs are stored in an adjacency list; scheduled communications are stored in this vector
     std::vector<ScheduledCommunication> scheduled_communications;
 
     // GETTER
@@ -128,8 +152,8 @@ class PhysicalInstance {
 
 // ------------------------------------------------------------------------------------------------
 
-float rad(const float deg); // convert degrees to radians
-float deg(const float rad); // convert radians to degrees
+float rad(const float deg); // converts degrees to radians
+float deg(const float rad); // converts radians to degrees
 
 } // namespace dmsc
 

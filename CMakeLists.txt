@@ -86,6 +86,8 @@ set(solver_files
 # source files
 target_sources(dmsc
     PRIVATE
+        src/edge.cpp
+        src/satellite.cpp
         src/visuals.cpp
         src/instance.cpp
         src/opengl_widgets.cpp
