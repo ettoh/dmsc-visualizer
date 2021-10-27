@@ -63,6 +63,7 @@ float Solver::nextCommunication(const InterSatelliteLink& edge, const float time
 void Solver::createCache() {
     for (const auto& edge : instance.getISLs()) {
         for (float t = 0.0f; t < edge.getPeriod(); t += step_size) {
+            // TODO getPERIOD IS INFINIT if cm.gp = 0
             float t_next = findNextVisiblity(edge, t);
             if (t_next == INFINITY || t_next >= edge.getPeriod()) {
                 break;

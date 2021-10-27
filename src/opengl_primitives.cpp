@@ -53,7 +53,7 @@ std::vector<GLubyte> Object::elements_8() const {
 // Object meshes
 /////////////////////////////////////
 
-Object createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy, const glm::vec3 color) {
+Object createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy, const glm::vec4 color) {
     unsigned short number_of_stacks = accuracy;
     unsigned short number_of_sectors = accuracy * 2;
     float stack_step = static_cast<float>(M_PI) / number_of_stacks;
@@ -157,7 +157,7 @@ Object createOrbit(const Satellite& orbit, const float scale, const glm::vec3 ce
         float true_anomaly = i * 2.f * static_cast<float>(M_PI) / number_of_sides;
         glm::vec3 cartesian_coords = orbit.cartesian_coordinates_angle(true_anomaly) / scale;
         vertex.position = center + cartesian_coords;
-        vertex.color = glm::vec3(.35f);
+        vertex.color = glm::vec4(.35f, .35f, .35f, 1.f);
         model.vertices.push_back(vertex);
         model.elements.push_back(i);
     }
@@ -167,7 +167,7 @@ Object createOrbit(const Satellite& orbit, const float scale, const glm::vec3 ce
 
 // ------------------------------------------------------------------------------------------------
 
-Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed) {
+Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color, bool dashed) {
     Object m = Object();
     m.gl_draw_mode = GL_LINES;
 
@@ -193,7 +193,7 @@ Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& col
 
 // ------------------------------------------------------------------------------------------------
 
-Object createPipe(const float radius, const float height, const glm::vec3 color, const unsigned int sector_count) {
+Object createPipe(const float radius, const float height, const glm::vec4 color, const unsigned int sector_count) {
     Object m = Object();
     m.gl_draw_mode = GL_TRIANGLE_STRIP;
     if (sector_count < 3)
@@ -240,8 +240,8 @@ Object createPipe(const float radius, const float height, const glm::vec3 color,
 
 // ------------------------------------------------------------------------------------------------
 
-Object createCone(const float base_radius, const float height, const glm::vec3 color,
-                  const unsigned short sector_count) {
+Object createCone(const float base_radius, const float height, const glm::vec4 color, const unsigned short sector_count,
+                  const bool centered) {
     Object m = Object();
     m.gl_draw_mode = GL_TRIANGLES;
     if (sector_count < 3)
@@ -250,11 +250,13 @@ Object createCone(const float base_radius, const float height, const glm::vec3 c
     const float half_height = height / 2;
 
     // top vertex (reused for different normals)
-    VertexData top_vertex(0.f, 0.f, 0.f);
+    VertexData top_vertex;
+    top_vertex = centered ? VertexData(0.f, half_height, 0.f) : VertexData(0.f, 0.f, 0.f);
     top_vertex.color = color;
 
     // bottom vertex
-    VertexData bottom_vertex(0.f, -height, 0.f);
+    VertexData bottom_vertex;
+    bottom_vertex = centered ? VertexData(0.f, -half_height, 0.f) : VertexData(0.f, -height, 0.f);
     bottom_vertex.color = color;
     bottom_vertex.normal = glm::vec3(0.f, -1.f, 0.f);
     m.vertices.push_back(bottom_vertex); // index 0
@@ -273,7 +275,7 @@ Object createCone(const float base_radius, const float height, const glm::vec3 c
         float angle = i * sector_step;
         float x = base_radius * cos(angle);
         float z = base_radius * sin(angle);
-        v.position = glm::vec3(x, -height, z);
+        v.position = centered ? glm::vec3(x, -half_height, z) : glm::vec3(x, -height, z);
 
         glm::vec3 normal(nx * cos(angle), ny, nx * sin(angle)); // rotation of initial normal
         v.normal = glm::normalize(normal);

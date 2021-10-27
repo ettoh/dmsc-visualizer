@@ -133,6 +133,8 @@ void OpenGLWidget::init() {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
     glEnable(GL_PRIMITIVE_RESTART);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glLineWidth(1.5f);
     glPrimitiveRestartIndex(MAX_ELEMENT_ID);
 
@@ -145,9 +147,11 @@ void OpenGLWidget::init() {
     GLuint fragment_shader = createShader("shader/basic.frag", GL_FRAGMENT_SHADER);
     GLuint earth_frag_shader = createShader("shader/earth.frag", GL_FRAGMENT_SHADER);
     GLuint satellite_vert_shader = createShader("shader/satellite.vert", GL_VERTEX_SHADER);
+    GLuint shaded_frag_shader = createShader("shader/shaded.frag", GL_FRAGMENT_SHADER);
     basic_program = createProgram(vertex_shader, fragment_shader);
     satellite_prog = createProgram(satellite_vert_shader, fragment_shader);
     earth_prog = createProgram(vertex_shader, earth_frag_shader);
+    shaded_prog = createProgram(satellite_vert_shader, shaded_frag_shader);
 
     // bind uniform vbo to programs
     glGenBuffers(1, &vbo_uniforms);
@@ -158,12 +162,16 @@ void OpenGLWidget::init() {
     glUniformBlockBinding(satellite_prog, index, 1);
     index = glGetUniformBlockIndex(earth_prog, "Global");
     glUniformBlockBinding(earth_prog, index, 1);
+    index = glGetUniformBlockIndex(shaded_prog, "Global");
+    glUniformBlockBinding(shaded_prog, index, 1);
 
     // create storage buffer
     glGenBuffers(1, &vbo_static);
     glGenBuffers(1, &ibo_static);
     buffer_transformations = GLBuffer<glm::mat4>(GL_DYNAMIC_DRAW);
     buffer_transformations.gen();
+    buffer_satellite_color = GLBuffer<glm::vec3>(GL_DYNAMIC_DRAW);
+    buffer_satellite_color.gen();
     buffer_lines = GLBuffer<VertexData>(GL_DYNAMIC_DRAW);
     buffer_lines.gen();
 
@@ -175,11 +183,11 @@ void OpenGLWidget::init() {
     glEnableVertexAttribArray(0); // vertices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
     glEnableVertexAttribArray(1); // colors
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
     glEnableVertexAttribArray(2); // texture
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 6));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 7));
     glEnableVertexAttribArray(3); // normals
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 8));
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 9));
     glBindBuffer(GL_ARRAY_BUFFER, buffer_transformations.buffer_idx); // object transformations
     glEnableVertexAttribArray(4);
     glEnableVertexAttribArray(5);
@@ -194,6 +202,41 @@ void OpenGLWidget::init() {
     glVertexAttribDivisor(5, 1);
     glVertexAttribDivisor(6, 1);
     glVertexAttribDivisor(7, 1);
+    glBindVertexArray(0);
+
+    // create vao for satellites
+    glGenVertexArrays(1, &vao_satellites);
+    glBindVertexArray(vao_satellites);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_static);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_static);
+    glEnableVertexAttribArray(0); // vertices
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), 0);
+    glEnableVertexAttribArray(1); // colors
+    glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 3));
+    glEnableVertexAttribArray(2); // texture
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 7));
+    glEnableVertexAttribArray(3); // normals
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(VertexData), (void*)(sizeof(GL_FLOAT) * 9));
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_transformations.buffer_idx); // object transformations
+    glEnableVertexAttribArray(4);
+    glEnableVertexAttribArray(5);
+    glEnableVertexAttribArray(6);
+    glEnableVertexAttribArray(7);
+    // maximum size for vertexAttr is 4. So we split the 4x4matrix into 4x vec4
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(0));
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 4));
+    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 8));
+    glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, sizeof(GLfloat) * 16, (void*)(sizeof(float) * 12));
+    glVertexAttribDivisor(4, 1); // update transformation attr. every 1 instance instead of every vertex
+    glVertexAttribDivisor(5, 1);
+    glVertexAttribDivisor(6, 1);
+    glVertexAttribDivisor(7, 1);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer_satellite_color.buffer_idx); // dynamic satellite color
+    glBufferData(GL_ARRAY_BUFFER, 0, 0,
+                 GL_STREAM_DRAW); // push data
+    glEnableVertexAttribArray(8);
+    glVertexAttribPointer(8, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), 0);
+    glVertexAttribDivisor(8, 1);
     glBindVertexArray(0);
 
     // create vao for lines
@@ -245,17 +288,151 @@ void OpenGLWidget::loadTextures(const char* uniform_name, const char* file, GLui
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) {
-    prepareInstanceScene(instance);
+void OpenGLWidget::show(const PhysicalInstance& instance, const Animation& animation, const float t0) {
+    prepareInstance(instance);
+    this->animation = animation;
     sim_time = t0;
     openWindow();
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::show(const PhysicalInstance& instance, const Solution& solution) {
-    prepareSolutionScene(instance, solution);
-    openWindow();
+void OpenGLWidget::show(const PhysicalInstance& instance, const float t0) { show(instance, Animation(), t0); }
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::show(const PhysicalInstance& instance, const DmscSolution& solution, const float t0) {
+    Animation anim = animateScanCover(instance, solution.scan_cover);
+    show(instance, anim, t0);
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void OpenGLWidget::show(const PhysicalInstance& instance, const FreezeTagSolution& solution, const float t0) {
+    Animation anim = animateScanCover(instance, solution.scan_cover);
+
+    // build timeline for satellite orientations and edge order
+    float scan_time = 0.f;
+    std::multimap<float, size_t> edge_order; // which edges are scanned at a given time (multiple edges can be scanned
+                                             // at the same time -> multimap)
+    for (const auto& scan : solution.scan_cover) {
+        float t = scan.second;              // time when edge is scheduled
+        scan_time = std::max(scan_time, t); // find time when all edges were scanned
+        // fill edge order
+        edge_order.insert({t, scan.first});
+    }
+
+    // when does the message recieves a satellite
+    std::map<size_t, float> satellites_done;
+    for (const auto& sat : solution.satellites_with_message) {
+        satellites_done[sat] = 0.f;
+    }
+
+    for (const auto& it : edge_order) {
+        // does one of the satellites already contain the message?
+        const InterSatelliteLink& isl = instance.getISLs().at(it.second);
+        auto res_1 = satellites_done.find(isl.getV1Idx());
+        auto res_2 = satellites_done.find(isl.getV2Idx());
+
+        // if only one satellite carries the message, the message will be transferred
+        if (res_1 == satellites_done.end() && res_2 != satellites_done.end()) {
+            // sat 2 carries the message
+            satellites_done[isl.getV1Idx()] = it.first; // time when sat 1 recieves the message
+        } else if (res_1 != satellites_done.end() && res_2 == satellites_done.end()) {
+            // sat 1 carries the message
+            satellites_done[isl.getV2Idx()] = it.first; // time when sat 2 recieves the message
+        }
+    }
+
+    // animate satellite color
+    for (const auto& sat : satellites_done) {
+        anim.addSatelliteAnimation(
+            sat.first, sat.second, scan_time, AnimationDetails(true, glm::vec4(0.f, 1.f, 0.f, 1.f)));
+    }
+
+    show(instance, anim, t0);
+}
+
+// ------------------------------------------------------------------------------------------------
+
+Animation OpenGLWidget::animateScanCover(const PhysicalInstance& instance, const ScanCover& scan_cover) {
+    Animation anim;
+
+    std::multimap<float, size_t> edge_order; // which edges are scanned at a given time (multiple edges can be scanned
+                                             // at the same time -> multimap)
+    float scan_time = 0.f;
+
+    // build timeline for satellite orientations and edge order
+    for (const auto& scan : scan_cover) {
+        float t = scan.second;              // time when edge is scheduled
+        scan_time = std::max(scan_time, t); // find time when all edges were scanned
+        const InterSatelliteLink& isl = instance.getISLs().at(scan.first);
+        glm::vec3 needed_orientation = isl.getOrientation(t);
+
+        glm::vec3 sat1 = instance.getSatellites()[isl.getV1Idx()].cartesian_coordinates(t);
+        glm::vec3 sat2 = instance.getSatellites()[isl.getV2Idx()].cartesian_coordinates(t);
+        float distance = glm::length((sat2 - sat1) / real_world_scale);
+
+        // add corresponding events for both satellites where they have to face in the needed
+        // direction in order to perform the scan
+        bool res_1 = anim.addOrientationAnimation(isl.getV1Idx(), t, OrientationDetails(needed_orientation, distance));
+        bool res_2 = anim.addOrientationAnimation(isl.getV2Idx(), t, OrientationDetails(-needed_orientation, distance));
+
+        if (!res_1 || !res_2) {
+            printf("The needed orientation for satellites can not be applied at t=%f!\n", t);
+        }
+
+        // fill edge order
+        edge_order.insert({t, scan.first});
+    }
+
+    // animate isl network
+    for (size_t i = 0; i < instance.islCount(); i++) {
+        // hide ISL-edges that are not part of the scan cover (anymore)
+        auto range = scan_cover.equal_range(i);
+        // edge is not part of the scan cover -> hide it
+        if (range.first == scan_cover.end()) {
+            anim.addISLAnimation(i, 0.f, scan_time, AnimationDetails(false));
+            continue;
+        } else {
+            float latest_use = 0.f;
+            for (auto it = range.first; it != range.second; ++it) {
+                latest_use = std::max(latest_use, it->second);
+            }
+            anim.addISLAnimation(i, latest_use, scan_time, AnimationDetails(false));
+        }
+    }
+
+    // change color for the next edges that will be scanned
+    std::vector<size_t> next_edges;
+    float te = 0.f, t = 0.f;
+    for (const auto& it : edge_order) {
+        if (it.first == t) { // this edge will also be visible next
+            next_edges.push_back(it.second);
+        }
+
+        if (it.first > t) { // edge that will be active later
+                            // 1. animate edges that came before
+            AnimationDetails d(true, glm::vec4(1.0f, .75f, 0.0f, 1.f));
+            for (const auto& edge_idx : next_edges) {
+                anim.addISLAnimation(edge_idx, te, t, d);
+            }
+            next_edges.clear();
+
+            // prepare the next edges
+            te = t;
+            t = it.first;
+            next_edges.push_back(it.second);
+        }
+    }
+
+    // change color for the last edges that will be scanned
+    AnimationDetails d(true, glm::vec4(1.0f, .75f, 0.0f, 1.f));
+    for (const auto& edge_idx : next_edges) {
+        anim.addISLAnimation(edge_idx, te, t, d);
+    }
+
+    return anim;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -384,10 +561,21 @@ void OpenGLWidget::recalculate() {
     glBufferSubData(GL_UNIFORM_BUFFER, 4 * sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(sun_rotation));
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    // dynamic part of scene
+    // #############################
+    // # dynamic part of scene
+    // #############################
+
+    buffer_satellite_color.values.clear();
     buffer_transformations.values.clear();
     recalculateOrbitPositions();
     recalculateLines();
+
+    // the buffer for transfomation and color must match (same instance), so we just fill up the color buffer
+    if (buffer_satellite_color.size() < buffer_transformations.size()) {
+        buffer_satellite_color.values.insert(buffer_satellite_color.values.end(),
+                                             buffer_transformations.size() - buffer_satellite_color.size(),
+                                             glm::vec3(-1.f));
+    }
 
     // push data to VBO
     if (buffer_transformations.values.size() != 0) {
@@ -396,6 +584,15 @@ void OpenGLWidget::recalculate() {
         glBufferData(GL_ARRAY_BUFFER,
                      size_transformation,
                      &buffer_transformations.values[0],
+                     GL_STREAM_DRAW); // push data
+    }
+
+    if (buffer_satellite_color.values.size() != 0) {
+        size_t size_transformation = sizeof(glm::vec3) * buffer_satellite_color.values.size();
+        glBindBuffer(GL_ARRAY_BUFFER, buffer_satellite_color.buffer_idx); // set active
+        glBufferData(GL_ARRAY_BUFFER,
+                     size_transformation,
+                     &buffer_satellite_color.values[0],
                      GL_STREAM_DRAW); // push data
     }
 }
@@ -408,10 +605,30 @@ void OpenGLWidget::recalculateOrbitPositions() {
 
     auto info = getObjectInfo("satellites");
     if (info != nullptr)
-        info->base_instance = buffer_transformations.size();
-    for (const Satellite& o : problem_instance.getSatellites()) {
+        info->base_instance = buffer_transformations.size(); // offset
+
+    // the buffer for transfomation and color must match (same instance), so we just fill up the color buffer
+    if (buffer_satellite_color.size() < buffer_transformations.size()) {
+        buffer_satellite_color.values.insert(buffer_satellite_color.values.end(),
+                                             buffer_transformations.size() - buffer_satellite_color.size(),
+                                             glm::vec3(-1.f));
+    }
+
+    for (size_t i = 0; i < problem_instance.getSatellites().size(); i++) {
+        const Satellite& o = problem_instance.getSatellites()[i];
         glm::vec3 position = o.cartesian_coordinates(sim_time) / real_world_scale;
         glm::mat4 translation = glm::translate(position);
+
+        auto result = animation.getSatelliteAnimation(i, sim_time);
+        if (result.first) {
+            if (!result.second.visible) {
+                translation *= glm::scale(glm::vec3(0.f)); // this satellite has to be invisible rn
+            }
+            buffer_satellite_color.values.push_back(result.second.color);
+        } else {
+            buffer_satellite_color.values.push_back(glm::vec3(-1));
+        }
+
         buffer_transformations.values.push_back(translation * scale);
     }
 }
@@ -432,43 +649,18 @@ void OpenGLWidget::recalculateISLNetwork() {
         const InterSatelliteLink& edge = problem_instance.getISLs().at(i);
         glm::vec3 sat1 = edge.getV1().cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = edge.getV2().cartesian_coordinates(sim_time) / real_world_scale;
-        glm::vec3 color = glm::vec3(1.f);
+        glm::vec4 color = glm::vec4(1.f);
 
-        if (edge.isBlocked(sim_time)) { // edge can not be scanned
-            color = glm::vec3(1.0f, 0.0f, 0.0f);
-        } else { // edge can be scanned
-            color = glm::vec3(0.0f, 1.0f, 0.0f);
-        }
-
-        if (state == SOLUTION) {
-            // hide ISL-edges that are not part of the scan cover (anymore)
-            auto range = scan_cover.equal_range(i);
-            // edge is not part of the scan cover -> hide it
-            if (range.first == scan_cover.end()) {
-                continue;
-            } else {
-                float latest_use = 0.f;
-                for (auto it = range.first; it != range.second; ++it) {
-                    latest_use = std::max(latest_use, it->second);
-                }
-                // edge will not be part of a communication anymore
-                if (latest_use < sim_time) {
-                    continue;
-                }
-            }
-
-            // change color for the next edge that is scanned
-            uint32_t next_edge = edge_order.prevailingEvent(sim_time).data;
-            if (next_edge == i) { // edge is scanned next
-                color = glm::vec3(1.0f, .75f, 0.0f);
-            } else if (edge.isBlocked(sim_time) ||
-                       !edge.canAlign(satellite_orientations[&edge.getV1()].previousEvent(sim_time),
-                                      satellite_orientations[&edge.getV2()].previousEvent(sim_time),
-                                      sim_time)) {
-
-                color = glm::vec3(1.0f, 0.0f, 0.0f);
-            } else {
-                color = glm::vec3(0.0f, 1.0f, 0.0f);
+        auto result = animation.getISLAnimation(i, sim_time);
+        if (result.first) {
+            if (!result.second.visible)
+                continue; // this isl has to be invisible rn
+            color = result.second.color;
+        } else {
+            if (edge.isBlocked(sim_time)) { // edge can not be scanned
+                color = glm::vec4(1.0f, 0.0f, 0.0f, 1.f);
+            } else { // edge can be scanned
+                color = glm::vec4(0.0f, 1.0f, 0.0f, 1.f);
             }
         }
 
@@ -505,7 +697,7 @@ void OpenGLWidget::recalculateLines() {
     for (const auto& c : problem_instance.scheduled_communications) {
         glm::vec3 sat1 = problem_instance.getSatellites()[c.first].cartesian_coordinates(sim_time) / real_world_scale;
         glm::vec3 sat2 = problem_instance.getSatellites()[c.second].cartesian_coordinates(sim_time) / real_world_scale;
-        Object communication_line = OpenGLPrimitives::createLine(sat1, sat2, glm::vec3(.55f, .1f, 1.f), true);
+        Object communication_line = OpenGLPrimitives::createLine(sat1, sat2, glm::vec4(.55f, .1f, 1.f, 1.f), true);
         scheduled_communications.add(communication_line);
 
         // model transformation for arrowhead
@@ -534,39 +726,92 @@ void OpenGLWidget::recalculateLines() {
 
     info_arrowhead = getObjectInfo("orientation_arrowhead");
     if (info_arrowhead != nullptr)
-        info_arrowhead->base_instance = buffer_transformations.size();
-    for (auto const& satellite : problem_instance.getSatellites()) {
+        info_arrowhead->base_instance = buffer_transformations.size(); // offset
+    for (auto const& it : animation.satellite_orientations) {
+        const Satellite& satellite = problem_instance.getSatellites().at(it.first);
         glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
-        TimelineEvent<glm::vec3> last_orientation = satellite_orientations[&satellite].previousEvent(sim_time, false);
-        TimelineEvent<glm::vec3> next_orientation = satellite_orientations[&satellite].prevailingEvent(sim_time, false);
+        TimelineEvent<OrientationDetails> last_orientation = it.second.previousEvent(sim_time, false);
+        TimelineEvent<OrientationDetails> next_orientation = it.second.prevailingEvent(sim_time, false);
 
         if (!last_orientation.isValid()) {
             last_orientation.t_begin = 0.f;
-            last_orientation.data = glm::vec3(0.f);
+            last_orientation.data.orientation = glm::vec3(0.f);
         }
 
         if (!next_orientation.isValid()) {
             next_orientation.t_begin = 0.f;
-            next_orientation.data = glm::vec3(0.f);
+            next_orientation.data.orientation = glm::vec3(0.f);
         }
 
-        float angle = std::acos(glm::dot(last_orientation.data, next_orientation.data)); // [rad]
+        float angle =
+            std::acos(glm::dot(last_orientation.data.orientation, next_orientation.data.orientation)); // [rad]
         float dt = sim_time - last_orientation.t_begin;
 
-        glm::vec3 direction_vector = last_orientation.data;
+        glm::vec3 direction_vector = last_orientation.data.orientation;
         direction_vector = glm::rotate(direction_vector,
                                        std::min(angle, dt * satellite.getRotationSpeed()),
-                                       glm::cross(direction_vector, next_orientation.data)) *
+                                       glm::cross(direction_vector, next_orientation.data.orientation)) *
                            0.03f;
 
-        // model transformation for arrowhead
-        glm::vec3 rotation_axis = glm::vec3(direction_vector.z, 0.f, -direction_vector.x);
-        float rotation_angle = acos(glm::normalize(direction_vector).y);
-        glm::mat4 rotation = glm::rotate(rotation_angle, rotation_axis);
-        glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
-        buffer_transformations.values.push_back(translation * scale * rotation);
+        // cones are used as antennas?
+        if (problem_instance.getSatellites()[it.first].getConeAngle() <= 0.f) {
+            // model transformation for arrowhead
+            glm::vec3 rotation_axis = glm::vec3(direction_vector.z, 0.f, -direction_vector.x);
+            float rotation_angle = acos(glm::normalize(direction_vector).y);
+            glm::mat4 rotation = glm::rotate(rotation_angle, rotation_axis);
+            glm::mat4 translation = glm::translate(glm::vec3(position + direction_vector));
+            buffer_transformations.values.push_back(translation * scale * rotation);
 
-        orientation_lines.add(OpenGLPrimitives::createLine(position, position + direction_vector, glm::vec3(1.0f)));
+            orientation_lines.add(OpenGLPrimitives::createLine(position, position + direction_vector, glm::vec4(1.0f)));
+        }
+    }
+
+    auto info_cones = getObjectInfo("orientation_cones");
+    if (info_cones != nullptr)
+        info_cones->base_instance = buffer_transformations.size(); // offset
+    for (auto const& it : animation.satellite_orientations) {
+        const Satellite& satellite = problem_instance.getSatellites().at(it.first);
+        glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
+        TimelineEvent<OrientationDetails> last_orientation = it.second.previousEvent(sim_time, false);
+        TimelineEvent<OrientationDetails> next_orientation = it.second.prevailingEvent(sim_time, false);
+
+        if (!last_orientation.isValid()) {
+            last_orientation.t_begin = 0.f;
+            last_orientation.data.orientation = glm::vec3(0.f);
+        }
+
+        if (!next_orientation.isValid()) {
+            next_orientation.t_begin = 0.f;
+            next_orientation.data.orientation = glm::vec3(0.f);
+        }
+
+        float angle =
+            std::acos(glm::dot(last_orientation.data.orientation, next_orientation.data.orientation)); // [rad]
+        float dt = sim_time - last_orientation.t_begin;
+
+        glm::vec3 direction_vector = last_orientation.data.orientation;
+        // TODO what if the vectors are linearly dependent? Then the cross product will be 0!
+        direction_vector = glm::rotate(direction_vector,
+                                       std::min(angle, dt * satellite.getRotationSpeed()),
+                                       glm::cross(direction_vector, next_orientation.data.orientation));
+
+        // cones are used as antennas?
+        if (problem_instance.getSatellites()[it.first].getConeAngle() > 0.f) {
+            float length = next_orientation.data.cone_length;
+            float cone_angle = problem_instance.getSatellites()[it.first].getConeAngle();
+            float radius = length * tanf(cone_angle / 2.f);
+
+            glm::mat4 size = glm::scale(glm::vec3(radius, length, radius));
+            glm::mat4 translation_origin =
+                glm::translate(glm::vec3(0.f, -length / 2.f, 0.f)); // move origin of cone to (0,0,0)
+            glm::mat4 translation = glm::translate(glm::vec3(position));
+
+            glm::vec3 rotation_axis = glm::vec3(-direction_vector.z, 0.f, direction_vector.x);
+            float rotation_angle = acos(glm::normalize(-direction_vector).y);
+            glm::mat4 rotation = glm::rotate(rotation_angle, rotation_axis);
+
+            buffer_transformations.values.push_back(translation * rotation * translation_origin * size);
+        }
     }
 
     info->number_vertices = orientation_lines.vertexCount();
@@ -578,7 +823,7 @@ void OpenGLWidget::recalculateLines() {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
+void OpenGLWidget::prepareInstance(const PhysicalInstance& instance) {
     deleteInstance();
     state = INSTANCE;
     problem_instance = instance; // copy so visualization does not depend on original instance
@@ -589,7 +834,7 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
         OpenGLPrimitives::createSphere(problem_instance.getRadiusCentralMass() / real_world_scale, glm::vec3(0.0f), 35);
     sphere.name = "central_mass";
     sphere.gl_program = earth_prog;
-    sphere.gl_vao = vao;
+    sphere.gl_vao = vao_satellites;
     objects.push_back(sphere);
 
     // orbits
@@ -616,13 +861,11 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     Object satellites = OpenGLPrimitives::createSatellite();
     satellites.name = "satellites";
     satellites.gl_program = satellite_prog;
-    satellites.gl_vao = vao;
+    satellites.gl_vao = vao_satellites;
     satellites.gl_element_type = GL_UNSIGNED_BYTE;
     satellites.drawInstanced = true;
     // for each satellite in instance we need one copy of the satellite object
-    for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
-        satellites.object_transformations.push_back(glm::mat4(1.f));
-    }
+    satellites.instance_count = problem_instance.getSatellites().size();
     objects.push_back(satellites);
 
     // Edges & orientations
@@ -638,28 +881,43 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
     objects.push_back(line_obj);
 
     // build arrowheads for scheduled communications
-    Object cone = OpenGLPrimitives::createCone(0.006f, 0.03f, glm::vec3(.55f, .1f, 1.f));
+    Object cone = OpenGLPrimitives::createCone(0.006f, 0.03f, glm::vec4(.55f, .1f, 1.f, 1.f));
     cone.name = "communications_arrowhead";
     cone.gl_program = satellite_prog;
-    cone.gl_vao = vao;
+    cone.gl_vao = vao_satellites;
     cone.gl_element_type = GL_UNSIGNED_BYTE;
     cone.drawInstanced = true;
-    for (int i = 0; i < problem_instance.scheduled_communications.size(); i++) {
-        cone.object_transformations.push_back(glm::mat4(1.f));
-    }
+    cone.instance_count = problem_instance.scheduled_communications.size();
     objects.push_back(cone);
 
+    // build arrowheads for satellite orientation (if cones are used)
+    Object orientation_cone = OpenGLPrimitives::createCone(1.0f, 1.0f, glm::vec4(1.f, 1.f, 1.f, .5f), 30U, true);
+    orientation_cone.name = "orientation_cones";
+    orientation_cone.gl_program = shaded_prog;
+    orientation_cone.gl_vao = vao_satellites;
+    orientation_cone.gl_element_type = GL_UNSIGNED_BYTE;
+    orientation_cone.drawInstanced = true;
+    orientation_cone.instance_count = 0;
+
     // build arrowheads for satellite orientations
-    cone = OpenGLPrimitives::createCone(0.005f, 0.012f, glm::vec3(1.f));
-    cone.name = "orientation_arrowhead";
-    cone.gl_program = satellite_prog;
-    cone.gl_vao = vao;
-    cone.gl_element_type = GL_UNSIGNED_BYTE;
-    cone.drawInstanced = true;
-    for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
-        cone.object_transformations.push_back(glm::mat4(1.f));
+    Object arrowhead_cone = OpenGLPrimitives::createCone(0.005f, 0.012f, glm::vec4(1.f));
+    arrowhead_cone.name = "orientation_arrowhead";
+    arrowhead_cone.gl_program = satellite_prog;
+    arrowhead_cone.gl_vao = vao_satellites;
+    arrowhead_cone.gl_element_type = GL_UNSIGNED_BYTE;
+    arrowhead_cone.drawInstanced = true;
+    arrowhead_cone.instance_count = 0;
+
+    for (const auto& sat : problem_instance.getSatellites()) {
+        if (sat.getConeAngle() > 0.f) {
+            orientation_cone.instance_count++;
+        } else {
+            arrowhead_cone.instance_count++;
+        }
     }
-    objects.push_back(cone);
+
+    objects.push_back(orientation_cone);
+    objects.push_back(arrowhead_cone);
 
     // sort objects by their VAO/program in order to reduce sate changes
     pushStaticSceneToGPU(objects);
@@ -681,47 +939,6 @@ void OpenGLWidget::prepareInstanceScene(const PhysicalInstance& instance) {
 
 // ------------------------------------------------------------------------------------------------
 
-void OpenGLWidget::prepareSolutionScene(const PhysicalInstance& instance, const Solution& solution) {
-    prepareInstanceScene(instance);
-    scan_cover = solution.scan_cover;
-    satellite_orientations.clear();
-    edge_order.clear();
-    state = SOLUTION;
-    sim_time = .0f;
-
-    // build timeline for satellite orientations and edge order
-    for (const auto& scan : solution.scan_cover) {
-        if (scan.first >= problem_instance.getISLs().size()) {
-            printf("Solution and instance does not match!\n");
-            assert(false);
-            exit(EXIT_FAILURE);
-        }
-
-        float t = scan.second; // time when edge is scheduled
-        const InterSatelliteLink& isl = problem_instance.getISLs().at(scan.first);
-        glm::vec3 needed_orientation = isl.getOrientation(t);
-
-        // add corresponding events for both satellites where they have to face in the needed
-        // direction in order to perform the scan
-        TimelineEvent<glm::vec3> orientation_sat1 = TimelineEvent<glm::vec3>(t, t, needed_orientation);
-        TimelineEvent<glm::vec3> orientation_sat2 = TimelineEvent<glm::vec3>(t, t, -needed_orientation);
-        bool res_1 = satellite_orientations[&isl.getV1()].insert(orientation_sat1);
-        bool res_2 = satellite_orientations[&isl.getV2()].insert(orientation_sat2);
-
-        if (!res_1 || !res_2) {
-            printf("The needed orientation for satellites can not be applied at t=%f!\n", t);
-        }
-
-        // fill edge order
-        if (!edge_order.insert(TimelineEvent<uint32_t>(t, t, scan.first))) {
-            printf("The edge with index %u could not be insterted into the edge order!\n", scan.first);
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-// TODO rework
 void OpenGLWidget::pushStaticSceneToGPU(const std::vector<Object>& scene_objects) {
     scene.clear();
     size_t vertex_size = 0;
@@ -914,6 +1131,7 @@ void OpenGLWidget::destroy() {
 void OpenGLWidget::deleteInstance() {
     state = EMPTY;
     scene.clear();
+    animation = Animation();
     object_names.clear();
     sim_speed = 1;
     sim_time = 0.f;

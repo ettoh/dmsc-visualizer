@@ -2,6 +2,8 @@
 #include <cassert>
 #include <fstream>
 
+#include <iostream>
+
 namespace dmsc {
 namespace tools {
 
@@ -35,15 +37,34 @@ GLuint createShader(const std::string& file_name, GLenum shader_type) {
 
     // Compile shader
     glCompileShader(shader);
-    glGetShaderiv(shader, GL_COMPILE_STATUS,
+    glGetShaderiv(shader,
+                  GL_COMPILE_STATUS,
                   &compile_flag); // get infos about the shader object and store it into compile_ok
     if (!compile_flag) {
+        debugShaderObject(shader);
         printf("Error in compiling shader: '%s'!\n", file_name.c_str());
         assert(false);
         exit(EXIT_FAILURE);
     }
 
     return shader;
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void debugShaderObject(const GLuint shader_object) {
+    GLint log_length = 0;
+    if (glIsShader(shader_object)) {
+        glGetShaderiv(shader_object, GL_INFO_LOG_LENGTH, &log_length);
+    } else {
+        std::cerr << "The given object is not a shader!" << std::endl;
+        return;
+    }
+
+    char* log = (char*)malloc(log_length);
+    glGetShaderInfoLog(shader_object, log_length, NULL, log);
+    std::cerr << log;
+    free(log);
 }
 
 // ------------------------------------------------------------------------------------------------

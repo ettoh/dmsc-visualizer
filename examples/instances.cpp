@@ -7,8 +7,10 @@ int main() {
     dmsc::StateVector sv; // represents a satellite
     sv.height_perigee = 200.f;
     instance.satellites.push_back(sv); // satellite 0
+    sv.initial_true_anomaly = dmsc::rad(10);
     sv.inclination = dmsc::rad(45.f);
     instance.satellites.push_back(sv); // satellite 1
+    sv.initial_true_anomaly = dmsc::rad(20);
     sv.inclination = dmsc::rad(23.f);
     instance.satellites.push_back(sv); // satellite 2
 

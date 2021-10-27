@@ -30,6 +30,11 @@ GLuint createShader(const std::string& file_name, GLenum shader_type);
  */
 GLuint createProgram(const GLuint vertex_shader, const GLuint fragment_shader);
 
+/**
+ * @brief Outputs debug information about opengl objects.
+ */
+void debugShaderObject(const GLuint shader_object);
+
 } // namespace tools
 } // namespace dmsc
 

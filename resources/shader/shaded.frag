@@ -1,6 +1,4 @@
 #version 420
-uniform sampler2D earth_day;
-uniform sampler2D specularity_map;
 
 in vec4 f_color;
 in vec4 f_normal;
@@ -32,10 +30,9 @@ void main(void) {
     float specular = 0.0;
     float spec_angle = max(dot(V, R), 0.0);    
 
-    vec3 earth_color = vec3(texture2D(earth_day, f_texcoord + vec2(0.5, 0.0)));
-    float specularity = vec3(texture2D(specularity_map, f_texcoord + vec2(0.5, 0.0))).x;
+    float specularity = 1;
     specular = pow(spec_angle, 20) * specularity;
-    vec3 diffuse_color = earth_color;
+    vec3 diffuse_color = f_color.xyz;
     vec3 light_color = vec3(0.89, 0.855, 0.686) * 500.0;
 
     vec3 color = vec3(0.0);

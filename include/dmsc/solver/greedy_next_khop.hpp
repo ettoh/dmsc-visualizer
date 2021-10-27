@@ -3,6 +3,7 @@
 
 #include "../instance.hpp"
 #include "../solver.hpp"
+#include "../solution_types.hpp"
 
 namespace dmsc {
 namespace solver {
@@ -17,7 +18,7 @@ class GreedyNextKHop : public Solver {
         : Solver(instance)
         , k(k) {}
 
-    Solution solve();
+    DmscSolution solve();
 
   private:
     struct Communication; // stores all paths for a scheduled communication and the currently chosen path + progress

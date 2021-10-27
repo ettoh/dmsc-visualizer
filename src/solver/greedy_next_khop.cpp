@@ -1,4 +1,5 @@
 #include "dmsc/solver/greedy_next_khop.hpp"
+#include <chrono>
 #include <deque>
 #include <set>
 
@@ -17,7 +18,7 @@ struct GreedyNextKHop::Communication {
 
 // ------------------------------------------------------------------------------------------------
 
-Solution GreedyNextKHop::solve() {
+DmscSolution GreedyNextKHop::solve() {
     // start time for computation time
     auto t_start = std::chrono::system_clock::now();
 
@@ -112,7 +113,7 @@ Solution GreedyNextKHop::solve() {
     auto t_end = std::chrono::system_clock::now();
     std::chrono::duration<float> diff = t_end - t_start;
 
-    Solution solution;
+    DmscSolution solution;
     solution.computation_time = diff.count();
     solution.scan_cover = scan_cover;
     return solution;

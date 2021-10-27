@@ -1,4 +1,6 @@
+#include "dmsc/animation.hpp"
 #include "dmsc/instance.hpp"
+#include "dmsc/solution_types.hpp"
 #include "dmsc/solver.hpp" // solution data type
 #include "opengl_primitives.hpp"
 #include <map>
@@ -22,8 +24,10 @@ class OpenGLWidget {
     ~OpenGLWidget();
     OpenGLWidget(const OpenGLWidget&) = delete;
     OpenGLWidget& operator=(const OpenGLWidget&) = delete;
+    void show(const PhysicalInstance& instance, const Animation& animation, const float t0 = 0.f);
     void show(const PhysicalInstance& instance, const float t0 = 0.f);
-    void show(const PhysicalInstance& instance, const Solution& solution);
+    void show(const PhysicalInstance& instance, const DmscSolution& solution, const float t0 = 0.f);
+    void show(const PhysicalInstance& instance, const FreezeTagSolution& solution, const float t0 = 0.f);
 
     enum VisualisationState { EMPTY, INSTANCE, SOLUTION };
 
@@ -40,18 +44,14 @@ class OpenGLWidget {
     void pushStaticSceneToGPU(const std::vector<OpenGLPrimitives::Object>& scene_objects);
     void loadTextures(const char* uniform_name, const char* file, GLuint& id);
     void openWindow();
+    Animation animateScanCover(const PhysicalInstance& instance, const ScanCover& scan_cover);
     OpenGLPrimitives::ObjectInfo* getObjectInfo(const std::string& name);
 
     /**
      * @brief Convert a given instance with orbits and communications between the satellites into an opengl
      * scene.
      */
-    void prepareInstanceScene(const PhysicalInstance& instance);
-
-    /**
-     * @brief Visualize a given solution for the given instance.
-     */
-    void prepareSolutionScene(const PhysicalInstance& instance, const Solution& solution);
+    void prepareInstance(const PhysicalInstance& instance);
 
     static void glfw_error_callback(int error, const char* description) {
         fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -62,10 +62,11 @@ class OpenGLWidget {
     const float real_world_scale = 7000.0f;
 
     // Handler
-    GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0;
+    GLuint basic_program = 0, satellite_prog = 0, earth_prog = 0, shaded_prog = 0;
     GLuint vbo_static = 0u, ibo_static = 0u, vbo_uniforms = 0u;
-    GLuint vao = 0u, vao_lines = 0u;
+    GLuint vao = 0u, vao_lines = 0u, vao_satellites = 0u;
     OpenGLPrimitives::GLBuffer<glm::mat4> buffer_transformations;
+    OpenGLPrimitives::GLBuffer<glm::vec3> buffer_satellite_color;
     OpenGLPrimitives::GLBuffer<OpenGLPrimitives::VertexData> buffer_lines;
     GLuint texture_id[2] = {0, 0};
 
@@ -84,14 +85,10 @@ class OpenGLWidget {
     std::vector<OpenGLPrimitives::ObjectInfo> scene;
     int state = VisualisationState::EMPTY;
     PhysicalInstance problem_instance = PhysicalInstance();
+    Animation animation = Animation();
     float sim_time = 0.0f;
     int sim_speed = 1;
     bool paused = false; // if true, the simulations is paused
-
-    // solution
-    std::map<const Satellite*, Timeline<glm::vec3>> satellite_orientations;
-    ScanCover scan_cover;
-    Timeline<uint32_t> edge_order;
 };
 
 } // namespace dmsc

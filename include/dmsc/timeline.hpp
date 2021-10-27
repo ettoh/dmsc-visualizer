@@ -38,7 +38,7 @@ struct TimelineEvent {
      * This ensures that the lower_bound() function of a timeline works properly.
      */
     friend bool operator<(const TimelineEvent& l, const TimelineEvent& r) {
-        return l.t_begin < r.t_begin && l.t_end < r.t_end;
+        return l.t_begin < r.t_begin && l.t_end <= r.t_end;
     }
 
     /**
@@ -86,7 +86,7 @@ class Timeline {
 
         float t_next = nextTimeWithEvent(event.t_begin, false);
         // is there an event that overlaps with the new one?
-        if (t_next != -1.f && t_next <= event.t_end) {
+        if (t_next != -1.f && t_next < event.t_end) {
             return false;
         }
 

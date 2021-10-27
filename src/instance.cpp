@@ -154,7 +154,6 @@ void Instance::save(const std::string& file) const {
 // = Physical Instance
 // ========================
 
-// TODO get rid
 PhysicalInstance::PhysicalInstance(const PhysicalInstance& source) {
     cm.radius_central_mass = source.cm.radius_central_mass;
     cm.gravitational_parameter = source.cm.gravitational_parameter;
@@ -217,7 +216,6 @@ void PhysicalInstance::buildAdjacencyMatrix() {
 
 // ------------------------------------------------------------------------------------------------
 
-// TODO get rid
 PhysicalInstance& PhysicalInstance::operator=(const PhysicalInstance& source) {
     // check for self-assignment
     if (&source == this)

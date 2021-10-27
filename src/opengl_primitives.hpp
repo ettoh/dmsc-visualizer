@@ -39,7 +39,7 @@ struct GLBuffer {
  */
 struct VertexData {
     glm::vec3 position = glm::vec3(0.f);
-    glm::vec3 color = glm::vec3(0.f);
+    glm::vec4 color = glm::vec4(0.f);
     glm::vec2 texture = glm::vec2(0.f);
     glm::vec3 normal = glm::vec3(0.f);
 
@@ -57,7 +57,7 @@ struct VertexData {
 struct Object {
     std::vector<VertexData> vertices;
     std::vector<GLuint> elements;
-    std::vector<glm::mat4> object_transformations; // one for each object instance
+    size_t instance_count = 1;
     GLenum gl_draw_mode = GL_TRIANGLES;
     GLenum gl_element_type = GL_UNSIGNED_INT;
     GLint gl_program = 0; // which programm is used to shade this object
@@ -67,7 +67,6 @@ struct Object {
 
     size_t elementCount() const { return elements.size(); }
     size_t vertexCount() const { return vertices.size(); }
-    size_t instanceCount() const { return object_transformations.size(); }
     bool isElementObject() const { return elements.size() != 0; }
 
     size_t totalVertexSize() const;            // total size in bytes
@@ -119,7 +118,7 @@ struct ObjectInfo {
         gl_draw_mode = object.gl_draw_mode;
         number_elements = object.elementCount();
         number_vertices = object.vertexCount();
-        number_instances = object.instanceCount();
+        number_instances = object.instance_count;
         name = object.name;
         drawInstanced = object.drawInstanced;
         gl_element_type = object.gl_element_type;
@@ -150,7 +149,7 @@ struct ObjectInfo {
  * @param accuracy number of stacks; 1/2 number of sectors
  */
 Object createSphere(const float radius, const glm::vec3 center, const unsigned short accuracy,
-                    const glm::vec3 color = glm::vec3(1.f, 1.f, 1.f));
+                    const glm::vec4 color = glm::vec4(1.f));
 
 /**
  * @brief Creates a list of elements that form a satellite (cube) in gl.
@@ -161,7 +160,7 @@ Object createSatellite();
 /**
  * @brief Creates list of vertices that form a line.
  */
-Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& color, bool dashed = false);
+Object createLine(const glm::vec3& p1, const glm::vec3& p2, const glm::vec4& color, bool dashed = false);
 
 /**
  * @brief Creates a list of vertices and colors that form an orbit in gl.
@@ -171,14 +170,14 @@ Object createOrbit(const Satellite& orbit, const float scale, const glm::vec3 ce
 /**
  * @brief Creates a list of elements that form a pipe like shape (around y-axis). Centered at (0,0,0).
  */
-Object createPipe(const float radius, const float height, const glm::vec3 color, const unsigned int sector_count = 15u);
+Object createPipe(const float radius, const float height, const glm::vec4 color, const unsigned int sector_count = 15u);
 
 /**
  * @brief Creates a list of elements that form a cone (around y-axis). Centered at (0,0,0); top points to (0, h/2,
  * 0).
  */
-Object createCone(const float base_radius, const float height, const glm::vec3 color,
-                  const unsigned short sector_count = 15u);
+Object createCone(const float base_radius, const float height, const glm::vec4 color,
+                  const unsigned short sector_count = 15u, const bool centered = false);
 
 } // namespace OpenGLPrimitives
 } // namespace dmsc

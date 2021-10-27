@@ -34,11 +34,12 @@ struct StateVector {
     float raan = 0.0f;                 // [rad] right ascension of the ascending node
     float rotation_speed = .005f;      // [rad/sec] speed of rotation (for the satellite to orientate)
     float initial_true_anomaly = 0.0f; // [rad]
+    float cone_angle = 0.f;            // [rad]
 
     bool operator==(const StateVector& e) {
         return height_perigee == e.height_perigee && eccentricity == e.eccentricity && inclination == e.inclination &&
                argument_periapsis == e.argument_periapsis && raan == e.raan && rotation_speed == e.rotation_speed &&
-               initial_true_anomaly == e.initial_true_anomaly;
+               initial_true_anomaly == e.initial_true_anomaly && cone_angle == e.cone_angle;
     }
 
     bool operator!=(const StateVector& e) { return !(*this == e); }
@@ -95,6 +96,7 @@ class Satellite {
     float getArgumentPeriapsis() const { return sv.argument_periapsis; }
     float getInclination() const { return sv.inclination; }
     float getHeightPerigee() const { return sv.height_perigee; }
+    float getConeAngle() const { return sv.cone_angle; }
 
     // SETTER
     void setRotationSpeed(float speed) { sv.rotation_speed = speed; };

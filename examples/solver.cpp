@@ -18,7 +18,7 @@ class SampleSolver : public dmsc::Solver {
     SampleSolver(const dmsc::PhysicalInstance& instance)
         : Solver(instance) {}
 
-    dmsc::Solution solve() {
+    dmsc::DmscSolution solve() {
         // you can access the physical instance
         const dmsc::Satellite s = instance.getSatellites()[0];
 
@@ -28,8 +28,10 @@ class SampleSolver : public dmsc::Solver {
         float t = nextCommunication(instance.getISLs()[0], 60.f);
 
         // do the magic here and build your solution
-        dmsc::Solution solution;
+        dmsc::DmscSolution solution;
         solution.scheduleEdge(0, t); // the edge with index 0 will be scanned at time t
+        solution.scheduleEdge(1, t + 100);
+        solution.scheduleEdge(2, t + 600);
         // ...
 
         return solution;
@@ -48,6 +50,7 @@ int main() {
     sv.initial_true_anomaly = dmsc::rad(90.f);
     sv.height_perigee = 200.f;
     instance.satellites.push_back(sv); // satellite 0
+    sv.cone_angle = dmsc::rad(45);
     sv.inclination = dmsc::rad(50.f);
     instance.satellites.push_back(sv); // satellite 1
     sv.inclination = dmsc::rad(25.f);
@@ -67,13 +70,13 @@ int main() {
     //===================================
 
     SampleSolver solver(instance);
-    dmsc::Solution solution = solver.solve();
+    dmsc::DmscSolution solution = solver.solve();
 
     //===================================
     // 3. visualize the solution
     //===================================
 
-    dmsc::visualizeSolution(instance, solution);
+    dmsc::visualizeDmscSolution(instance, solution);
 
     return 0;
 }

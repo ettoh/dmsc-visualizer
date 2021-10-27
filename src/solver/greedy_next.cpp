@@ -1,11 +1,12 @@
 #include "dmsc/solver/greedy_next.hpp"
+#include <chrono>
 
 namespace dmsc {
 namespace solver {
 
 // TODO are the instance and solver compatible?
 // greedy next ignores the schedules communications - it scans all isl
-Solution GreedyNext::solve() {
+DmscSolution GreedyNext::solve() {
     // start time for computation time
     auto t_start = std::chrono::system_clock::now();
 
@@ -62,7 +63,7 @@ Solution GreedyNext::solve() {
     auto t_end = std::chrono::system_clock::now();
     std::chrono::duration<float> diff = t_end - t_start;
 
-    Solution solution;
+    DmscSolution solution;
     solution.computation_time = diff.count();
     solution.scan_cover = scan_cover;
     return solution;

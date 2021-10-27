@@ -16,17 +16,35 @@ void visualizeInstance(const PhysicalInstance& instance, const float t0) {
 
 // ------------------------------------------------------------------------------------------------
 
-void visualizeSolution(const Instance& instance, const Solution& solution) {
-    visualizeSolution(PhysicalInstance(instance), solution);
+void visualizeDmscSolution(const Instance& instance, const DmscSolution& solution, const float t0) {
+    visualizeDmscSolution(PhysicalInstance(instance), solution, t0);
 }
 
 // ------------------------------------------------------------------------------------------------
 
-void visualizeSolution(const PhysicalInstance& instance, const Solution& solution) {
+void visualizeDmscSolution(const PhysicalInstance& instance, const DmscSolution& solution, const float t0) {
     OpenGLWidget gl;
-    gl.show(instance, solution);
+    gl.show(instance, solution, t0);
 }
 
 // ------------------------------------------------------------------------------------------------
+
+void visualizeCustom(const Instance& instance, const Animation& animation, const float t0) {
+    visualizeCustom(PhysicalInstance(instance), animation, t0);
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void visualizeCustom(const PhysicalInstance& instance, const Animation& animation, const float t0) {
+    OpenGLWidget gl;
+    gl.show(instance, animation, t0);
+}
+
+// ------------------------------------------------------------------------------------------------
+
+void visualizeFreezeTagSolution(const PhysicalInstance& instance, const FreezeTagSolution& solution, const float t0) {
+    OpenGLWidget gl;
+    gl.show(instance, solution, t0);
+}
 
 } // namespace dmsc
