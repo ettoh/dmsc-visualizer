@@ -769,11 +769,20 @@ void OpenGLWidget::recalculateLines() {
     auto info_cones = getObjectInfo("orientation_cones");
     if (info_cones != nullptr)
         info_cones->base_instance = buffer_transformations.size(); // offset
-    for (auto const& it : animation.satellite_orientations) {
-        const Satellite& satellite = problem_instance.getSatellites().at(it.first);
+    for (int i = 0; i < problem_instance.getSatellites().size(); i++) {
+        auto result = animation.satellite_orientations.find(i);
+
+        // fill memory even if no animation is scheduled for this satellite (if not, not initialized memory will be used
+        // by the GPU!)
+        if (result == animation.satellite_orientations.end()) {
+            buffer_transformations.values.push_back(glm::mat4(0));
+            continue;
+        }
+
+        const Satellite& satellite = problem_instance.getSatellites().at(i);
         glm::vec3 position = satellite.cartesian_coordinates(sim_time) / real_world_scale;
-        TimelineEvent<OrientationDetails> last_orientation = it.second.previousEvent(sim_time, false);
-        TimelineEvent<OrientationDetails> next_orientation = it.second.prevailingEvent(sim_time, false);
+        TimelineEvent<OrientationDetails> last_orientation = result->second.previousEvent(sim_time, false);
+        TimelineEvent<OrientationDetails> next_orientation = result->second.prevailingEvent(sim_time, false);
 
         if (!last_orientation.isValid()) {
             last_orientation.t_begin = 0.f;
@@ -796,9 +805,9 @@ void OpenGLWidget::recalculateLines() {
                                        glm::cross(direction_vector, next_orientation.data.orientation));
 
         // cones are used as antennas?
-        if (problem_instance.getSatellites()[it.first].getConeAngle() > 0.f) {
+        if (problem_instance.getSatellites()[i].getConeAngle() > 0.f) {
             float length = next_orientation.data.cone_length;
-            float cone_angle = problem_instance.getSatellites()[it.first].getConeAngle();
+            float cone_angle = problem_instance.getSatellites()[i].getConeAngle();
             float radius = length * tanf(cone_angle / 2.f);
 
             glm::mat4 size = glm::scale(glm::vec3(radius, length, radius));
