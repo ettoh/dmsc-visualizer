@@ -526,7 +526,7 @@ void OpenGLWidget::recalculate() {
 
     // sun rotation
     float sun_angle = sim_time * 0.000290f; // 6h -> one turn around the earth
-    glm::mat4 sun_rotation = glm::rotate(glm::mat4(1.f), sun_angle, glm::vec3(0.f, 1.f, 0.f));
+    glm::mat4 sun_rotation = glm::rotate(glm::mat4(1.f), -sun_angle, glm::vec3(0.f, 1.f, 0.f));
 
     /* Camera circumnavigating around the central mass.
      * Instead of performing two rotations for the camera, the rotation around the y-axis is done by
